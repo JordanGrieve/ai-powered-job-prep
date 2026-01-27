@@ -9,9 +9,13 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@arcjet/next": "^1.0.0",
+    "@clerk/nextjs": "^6.36.10",
+    "@t3-oss/env-nextjs": "^0.13.10",
     "next": "16.2.0-canary.13",
     "react": "19.2.4",
-    "react-dom": "19.2.4"
+    "react-dom": "19.2.4",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
@@ -22,5 +26,8 @@
     "eslint-config-next": "16.2.0-canary.13",
     "tailwindcss": "^4",
     "typescript": "^5"
+  },
+  "overrides": {
+    "next": "$next"
   }
 }
