@@ -1,7 +1,7 @@
 import { pgTable, varchar, pgEnum } from "drizzle-orm/pg-core";
 import { createdAt, id, updatedAt } from "../schemaHelper";
-import { UserTable } from "../schema";
 import { relations } from "drizzle-orm";
+import { UserTable } from "./user";
 import { QuestionTable } from "./question";
 import { InterviewTable } from "./interview";
 
@@ -31,6 +31,6 @@ export const JobInfoRelations = relations(jobInfoTable, ({ one, many }) => ({
     fields: [jobInfoTable.userId],
     references: [UserTable.id],
   }),
-  questions: many(QuestionTable),
-  interviews: many(InterviewTable),
+  questions: many(QuestionTable, { relationName: "jobInfo_questions" }),
+  interviews: many(InterviewTable, { relationName: "jobInfo_interviews" }),
 }));

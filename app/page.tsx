@@ -2,6 +2,7 @@ import { ThemeToggle } from "@/components/ui/ThemeToggle";
 import {
   ClerkProvider,
   SignInButton,
+  SignUp,
   SignUpButton,
   SignedIn,
   SignedOut,
