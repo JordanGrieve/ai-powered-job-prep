@@ -6,7 +6,7 @@ import { jobInfoTable } from "./jobInfo";
 export const UserTable = pgTable("users", {
   id: varchar().primaryKey(),
   email: varchar().notNull().unique(),
-  name: varchar(),
+  name: varchar().notNull(),
   imageUrl: varchar().notNull(),
   createdAt,
   updatedAt,

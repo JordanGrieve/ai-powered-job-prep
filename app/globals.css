@@ -204,6 +204,14 @@
   max-width: 96rem;
 }
 
+@utility h-header {
+  height: var(--spacing-header);
+}
+
+@utility h-screen-header {
+  height: var(--spacing-screen-header);
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

@@ -3,17 +3,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { upsertUser, deleteUser } from "@/app/features/users/db";
 
 export async function POST(request: NextRequest) {
-  console.log("🚨 WEBHOOK HIT");
-  console.log("Headers:", request.headers);
-  console.log("Method:", request.method);
-
   try {
     const event = await verifyWebhook(request);
 
     switch (event.type) {
       case "user.created":
       case "user.updated":
-        console.log("FAILED");
         const clerkData = event.data;
         const email = clerkData.email_addresses.find(
           (e) => e.id === clerkData.primary_email_address_id,
