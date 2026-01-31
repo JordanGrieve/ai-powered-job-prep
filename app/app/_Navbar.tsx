@@ -10,7 +10,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import Link from "next/link";
-import UserAvatar from "@/components/UserAvatar";
+import UserAvatar from "../features/users/components/UserAvatar";
 
 export function Navbar({
   user,
