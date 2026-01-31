@@ -29,6 +29,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { jobInfoSchema } from "../schema";
 import { LoadingSwap } from "@/components/ui/loading-swap";
+import { createJobInfo } from "../actions";
 
 export type JobInfoSchema = z.infer<typeof jobInfoSchema>;
 
