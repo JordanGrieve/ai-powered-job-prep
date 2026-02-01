@@ -29,7 +29,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { jobInfoSchema } from "../schema";
 import { LoadingSwap } from "@/components/ui/loading-swap";
-import { createJobInfo } from "../actions";
+import { createJobInfo, updateJobInfo } from "../actions";
+import { toast } from "sonner";
 
 export type JobInfoSchema = z.infer<typeof jobInfoSchema>;
 
@@ -52,9 +53,14 @@ export function JobInfoForm({
   });
 
   async function onSubmit(data: JobInfoSchema) {
-    const action = jobInfo ? updateJobInfo : createJobInfo;
+    const action = jobInfo
+      ? updateJobInfo.bind(null, jobInfo.id)
+      : createJobInfo;
     const res = await action(data);
-    console.log(data);
+
+    if (res.error) {
+      toast.error(res.message);
+    }
   }
 
   return (
