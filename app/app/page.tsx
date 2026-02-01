@@ -69,7 +69,7 @@ async function JobInfos() {
                   </CardHeader>
                   <CardContent>
                     <p className="text-sm text-muted-foreground line-clamp-3">
-                      {jobInfo.title}
+                      {jobInfo.description}
                     </p>
                   </CardContent>
                   <CardFooter className="flex gap-2">
