@@ -1,3 +1,4 @@
+import { buttonVariants } from "@/components/ui/button";
 import { ClerkProvider as OriginalClerkProvider } from "@clerk/nextjs";
 
 export function ClerkProvider({ children }: { children: React.ReactNode }) {
@@ -24,6 +25,24 @@ export function ClerkProvider({ children }: { children: React.ReactNode }) {
           colorWarning: "var(--color-warning)",
           fontFamily: "var(--font-sans)",
           fontFamilyButtons: "var(--font-sans)",
+        },
+        elements: {
+          pricingTableCard:
+            "custom-pricing-table bg-[unset] border border-border p-6 my-3",
+          pricingTableCardHeader: "p-0 pb-12",
+          pricingTableCardTitle: "text-xl",
+          pricingTableCardBody:
+            "flex flex-col bg-none bg-[unset] *:bg-none *:bg-[unset] [&_.cl_pricingTableCardFeatures]:justify-items-end",
+          pricingTableCardDescription: "text-muted-foreground text-sm mb-2",
+          pricingTableCardFeeContainer: "items-baseline gap-0.5",
+          pricingTableCardFee: "text-4xl",
+          pricingTableCardFeePeriodNotice: "hidden",
+          pricingTableCardFeePeriod: "text-base text-muted-foreground",
+          pricingTableCardFeatures: "p-0 border-none",
+          pricingTableCardFeaturesListItem: "text-primary",
+          pricingTableCardFeaturesListItemIcon: "text-sm",
+          pricingTableCardFooter: "p-0 pt-8 border-none",
+          pricingTableCardFooterButton: buttonVariants({}),
         },
       }}
     >

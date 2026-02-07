@@ -1,3 +1,5 @@
+@layer theme, base, vendor, components, utilities;
+
 @import "tailwindcss";
 @import "tw-animate-css";
 
@@ -219,5 +221,14 @@
   body {
     @apply bg-background text-foreground;
     letter-spacing: var(--tracking-normal);
+  }
+}
+
+.custom-pricing-table.cl-pricingTableCard__pro {
+  @apply border-primary/50 my-0 py-9 relative overflow-visible;
+
+  &::before {
+    content: "Most popular";
+    @apply absolute -top-3 left-1/2 -translate-x-1/2 rounded-full px-4 py-1 text-sm text-primary-foreground bg-primary;
   }
 }

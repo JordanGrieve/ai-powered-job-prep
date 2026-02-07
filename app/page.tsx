@@ -8,6 +8,7 @@ import {
   SignedOut,
   UserButton,
 } from "@clerk/nextjs";
+import { PricingTable } from "./services/clerk/components/PricingTable";
 
 export default function HomePage() {
   return (
@@ -15,6 +16,7 @@ export default function HomePage() {
       <UserButton />
       <SignInButton forceRedirectUrl="/onboarding" />
       <ThemeToggle />
+      <PricingTable />
     </div>
   );
 }
