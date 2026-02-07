@@ -3,6 +3,7 @@ import { jobInfoTable } from "@/app/drizzle/schema/jobInfo";
 import { getJobInfoIdTag } from "@/app/features/jobInfos/dbCache";
 import { getCurrentUser } from "@/app/services/clerk/lib/getCurrentUser";
 import BackLink from "@/components/BackLink";
+import { Skeleton } from "@/components/Skeleton";
 import { SuspendedItem } from "@/components/SuspendedItem";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -40,7 +41,7 @@ const options = [
     label: "Update job description",
     description:
       "This should only be used for minior updates to your job description. For major changes, we recommend creating a new job description to keep track of your progress over time.",
-    href: "update",
+    href: "edit",
   },
 ];
 
@@ -70,21 +71,21 @@ export default async function JobInfoPage({
             <h1 className="text-3xl md:text-3xl">
               <SuspendedItem
                 item={jobInfo}
-                fallback="Loading..."
+                fallback={<Skeleton className="w-48" />}
                 result={(j) => j.name}
               />
             </h1>
             <div className="flex gap-2">
               <SuspendedItem
                 item={jobInfo}
-                fallback="Loading..."
+                fallback={<Skeleton className="w-12" />}
                 result={(j) => (
                   <Badge variant="secondary">{j.experienceLevel}</Badge>
                 )}
               />
               <SuspendedItem
                 item={jobInfo}
-                fallback="Loading..."
+                fallback={<Skeleton className="w-12" />}
                 result={(j) => <Badge variant="secondary">{j.title}</Badge>}
               />
             </div>
@@ -92,7 +93,7 @@ export default async function JobInfoPage({
           <p className="text-muted-foreground line-clamp-3">
             <SuspendedItem
               item={jobInfo}
-              fallback="Loading..."
+              fallback={<Skeleton className="w-96" />}
               result={(j) => j.description}
             />
           </p>
