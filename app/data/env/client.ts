@@ -9,11 +9,15 @@ export const env = createEnv({
     NEXT_PUBLIC_CLERK_SIGN_IN_URL: z
       .string()
       .min(1, "NEXT_PUBLIC_CLERK_SIGN_IN_URL is required"),
+    NEXT_PUBLIC_HUME_CONFIG_ID: z
+      .string()
+      .min(1, "NEXT_PUBLIC_HUME_CONFIG_ID is required"),
   },
   emptyStringAsUndefined: true,
   experimental__runtimeEnv: {
     NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY:
       process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY,
     NEXT_PUBLIC_CLERK_SIGN_IN_URL: process.env.NEXT_PUBLIC_CLERK_SIGN_IN_URL,
+    NEXT_PUBLIC_HUME_CONFIG_ID: process.env.NEXT_PUBLIC_HUME_CONFIG_ID,
   },
 });
