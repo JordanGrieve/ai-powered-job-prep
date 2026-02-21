@@ -4,9 +4,19 @@ import { getInterviewJobInfoTag } from "@/app/features/interviews/dbCache";
 import { JobInfoBackLink } from "@/app/features/jobInfos/components/JobInfoBackLink";
 import { getJobInfoIdTag } from "@/app/features/jobInfos/dbCache";
 import { getCurrentUser } from "@/app/services/clerk/lib/getCurrentUser";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { formatDateTime } from "@/lib/formatters";
 import { and, desc, eq, isNotNull } from "drizzle-orm";
-import { Loader2 } from "lucide-react";
+import { ArrowRightIcon, Loader2, PlusIcon } from "lucide-react";
 import { cacheTag } from "next/cache";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 
@@ -38,7 +48,55 @@ async function SuspendedPage({ jobInfoId }: { jobInfoId: string }) {
     return redirect(`/app/job-infos/${jobInfoId}/interviews/new`);
   }
 
-  return <div>Interviews for Job Info ID: {jobInfoId}</div>;
+  return (
+    <div className="space-y-6 w-full">
+      <div className="flex gap-2 justify-between mb-6">
+        <h1 className="text-3xl md:text-4xl; lg:text-5xl">Interviews</h1>
+        <Button asChild>
+          <Link href={`/app/job-infos/${jobInfoId}/interviews/new`}>
+            <PlusIcon />
+            New Interview
+          </Link>
+        </Button>
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-col-3 gap-6 has-hover:*:not-hover:opacity-70">
+        {/* Create New Job */}
+        <Link
+          className="transition-opacity"
+          href={`/app/job-infos/${jobInfoId}/interviews/new`}
+        >
+          <Card className="h-full flex items-center justify-center border-dashed border-3 bg-transparent hover:border-primary/50 transition-colors shadow-none">
+            <div className="text-lg flex items-center gap-2">
+              <PlusIcon className="size-6" />
+              New Interview
+            </div>
+          </Card>
+        </Link>
+
+        {interviews.map((interview) => (
+          <Link
+            className="hover:scale-[1.02] transition-[transform_opacity]"
+            href={`/app/job-infos/${jobInfoId}/interviews/${interview.id}`}
+            key={interview.id}
+          >
+            <Card className="h-full">
+              <div className="flex items-center justify-between h-full">
+                <CardHeader className="gap-1 grow">
+                  <CardTitle className="text-lg">
+                    {formatDateTime(interview.createdAt)}
+                  </CardTitle>
+                  <CardDescription>{interview.duration}</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <ArrowRightIcon className="size-6" />
+                </CardContent>
+              </div>
+            </Card>
+          </Link>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 async function getInterviews(jobInfoId: string, userId: string) {
