@@ -13,6 +13,7 @@ import { canCreateInterview } from "./permissions";
 import { PLAN_LIMIT_MESSAGE } from "@/lib/errorToast";
 import arcjet, { tokenBucket, request } from "@arcjet/next";
 import { env } from "@/app/data/env/server";
+import { generateAiInterviewFeedback } from "@/app/services/ai/interviews";
 
 const aj = arcjet({
   characteristics: ["userId"],
@@ -102,6 +103,48 @@ export async function updateInterview(
   return { error: false };
 }
 
+export async function generateInterviewFeedback(interviewId: string) {
+  const { userId, user } = await getCurrentUser({ allData: true });
+  if (userId == null || user == null) {
+    return {
+      error: true,
+      message: "You don't have permission to do this",
+    };
+  }
+
+  const interview = await getInterview(interviewId, userId);
+  if (interview == null) {
+    return {
+      error: true,
+      message: "You don't have permission to do this",
+    };
+  }
+
+  if (interview.humeChatId == null) {
+    return {
+      error: true,
+      message: "Feedback can't be generated for this interview",
+    };
+  }
+
+  const feedback = await generateAiInterviewFeedback({
+    humeChatId: interview.humeChatId,
+    jobInfo: interview.jobInfo,
+    userName: user.name,
+  });
+
+  if (feedback == null) {
+    return {
+      error: true,
+      message: "Failed to generate feedback. Please try again.",
+    };
+  }
+
+  await updateInterviewDb(interviewId, { feedback });
+
+  return { error: false };
+}
+
 async function getJobInfo(id: string, userId: string) {
   "use cache";
   cacheTag(getJobInfoIdTag(id));
@@ -122,6 +165,9 @@ async function getInterview(id: string, userId: string) {
         columns: {
           id: true,
           userId: true,
+          description: true,
+          experienceLevel: true,
+          title: true,
         },
       },
     },
