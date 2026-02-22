@@ -11,6 +11,21 @@ import { getInterviewIdTag } from "./dbCache";
 import { InterviewTable } from "@/app/drizzle/schema/interview";
 import { canCreateInterview } from "./permissions";
 import { PLAN_LIMIT_MESSAGE } from "@/lib/errorToast";
+import arcjet, { tokenBucket, request } from "@arcjet/next";
+import { env } from "@/app/data/env/server";
+
+const aj = arcjet({
+  characteristics: ["userId"],
+  key: env.ARCJET_KEY,
+  rules: [
+    tokenBucket({
+      capacity: 12,
+      refillRate: 4,
+      interval: "1d",
+      mode: "LIVE",
+    }),
+  ],
+});
 
 export async function createInterview({
   jobInfoId,
@@ -26,7 +41,7 @@ export async function createInterview({
     };
   }
 
-  // TODO Permissions
+  // Permissions
   if (!(await canCreateInterview())) {
     return {
       error: true,
@@ -34,7 +49,8 @@ export async function createInterview({
     };
   }
 
-  // TODO Rate limit
+  // Rate limit
+  const decision = await aj.protect(await request(), { userId, requested: 1 });
 
   // job info
   const jobInfo = await getJobInfo(jobInfoId, userId);
@@ -42,6 +58,13 @@ export async function createInterview({
     return {
       error: true,
       message: "Unauthorized access. Please sign in to start an interview.",
+    };
+  }
+
+  if (decision.isDenied()) {
+    return {
+      error: true,
+      message: PLAN_LIMIT_MESSAGE,
     };
   }
 
