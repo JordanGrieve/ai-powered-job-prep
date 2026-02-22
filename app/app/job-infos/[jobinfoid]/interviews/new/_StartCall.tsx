@@ -7,11 +7,10 @@ import {
   updateInterview,
 } from "@/app/features/interviews/actions";
 import { CondensedMessages } from "@/app/services/hume/components/CondensedMessages";
-import { condensedChatMessages } from "@/app/services/hume/lib/condensedChatMessages";
+import { condenseChatMessages } from "@/app/services/hume/lib/condensedChatMessages";
 import { Button } from "@/components/ui/button";
 import { errorToast } from "@/lib/errorToast";
 import { useVoice, VoiceReadyState } from "@humeai/voice-react";
-import { duration } from "drizzle-orm/gel-core";
 import {
   Loader2Icon,
   Mic,
@@ -139,7 +138,7 @@ function Messages({
   const { messages, fft } = useVoice();
 
   const condensedMessages = useMemo(() => {
-    return condensedChatMessages(messages);
+    return condenseChatMessages(messages);
   }, [messages]);
   return (
     <CondensedMessages

@@ -9,6 +9,8 @@ import { cacheTag } from "next/cache";
 import { insertInterview, updateInterview as updateInterviewDb } from "./db";
 import { getInterviewIdTag } from "./dbCache";
 import { InterviewTable } from "@/app/drizzle/schema/interview";
+import { canCreateInterview } from "./permissions";
+import { PLAN_LIMIT_MESSAGE } from "@/lib/errorToast";
 
 export async function createInterview({
   jobInfoId,
@@ -25,6 +27,12 @@ export async function createInterview({
   }
 
   // TODO Permissions
+  if (!(await canCreateInterview())) {
+    return {
+      error: true,
+      message: PLAN_LIMIT_MESSAGE,
+    };
+  }
 
   // TODO Rate limit
 

@@ -15,9 +15,9 @@ function revalidateJobInfoCache({
   id: string;
   userId: string;
 }) {
-  revalidateTag(getJobInfoGlobalTag());
-  revalidateTag(getJobInfoUserTag(userId));
-  revalidateTag(getJobInfoIdTag(id));
+  revalidateTag(getJobInfoGlobalTag(), "default");
+  revalidateTag(getJobInfoUserTag(userId), "default");
+  revalidateTag(getJobInfoIdTag(id), "default");
 }
 
 export async function insertJobInfo(jobInfo: typeof jobInfoTable.$inferInsert) {

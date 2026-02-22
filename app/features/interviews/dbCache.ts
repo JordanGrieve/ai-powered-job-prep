@@ -20,7 +20,7 @@ export function revalidateInterviewCache({
   id: string;
   jobInfoId: string;
 }) {
-  revalidateTag(getInterviewGlobalTag());
-  revalidateTag(getInterviewJobInfoTag(jobInfoId));
-  revalidateTag(getInterviewIdTag(id));
+  revalidateTag(getInterviewGlobalTag(), "default");
+  revalidateTag(getInterviewJobInfoTag(jobInfoId), "default");
+  revalidateTag(getInterviewIdTag(id), "default");
 }

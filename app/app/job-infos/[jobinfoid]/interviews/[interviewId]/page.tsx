@@ -27,9 +27,9 @@ import { Suspense } from "react";
 export default async function InterviewPage({
   params,
 }: {
-  params: Promise<{ jobInfoId: string; interviewId: string }>;
+  params: Promise<{ jobinfoid: string; interviewId: string }>;
 }) {
-  const { jobInfoId, interviewId } = await params;
+  const { jobinfoid, interviewId } = await params;
 
   const interview = getCurrentUser().then(
     async ({ userId, redirectToSignIn }) => {
@@ -43,7 +43,7 @@ export default async function InterviewPage({
 
   return (
     <div className="container my-4 space-y-4">
-      <BackLink href={`/app/job-infos/${jobInfoId}/interviews`}>
+      <BackLink href={`/app/job-infos/${jobinfoid}/interviews`}>
         All Interviews
       </BackLink>
       <div className="space-y-6">
