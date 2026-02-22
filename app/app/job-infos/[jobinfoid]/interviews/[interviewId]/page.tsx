@@ -3,6 +3,9 @@ import { InterviewTable } from "@/app/drizzle/schema";
 import { getInterviewIdTag } from "@/app/features/interviews/dbCache";
 import { getJobInfoIdTag } from "@/app/features/jobInfos/dbCache";
 import { getCurrentUser } from "@/app/services/clerk/lib/getCurrentUser";
+import { CondensedMessages } from "@/app/services/hume/components/CondensedMessages";
+import { fetchChatMessages } from "@/app/services/hume/lib/api";
+import { condenseChatMessages } from "@/app/services/hume/lib/condensedChatMessages";
 import BackLink from "@/components/BackLink";
 import { MarkdownRenderer } from "@/components/MarkdownRenderer";
 import { Skeleton, SkeletonButton } from "@/components/Skeleton";
@@ -16,8 +19,10 @@ import {
 } from "@/components/ui/dialog";
 import { formatDateTime } from "@/lib/formatters";
 import { eq } from "drizzle-orm";
+import { Loader2Icon } from "lucide-react";
 import { cacheTag } from "next/cache";
 import { notFound } from "next/navigation";
+import { Suspense } from "react";
 
 export default async function InterviewPage({
   params,
@@ -41,9 +46,9 @@ export default async function InterviewPage({
       <BackLink href={`/app/job-infos/${jobInfoId}/interviews`}>
         All Interviews
       </BackLink>
-      <div className="spay-y-6">
+      <div className="space-y-6">
         <div className="flex gap-2 justify-between">
-          <div className="spay-y-2 mb-6">
+          <div className="space-y-2 mb-6">
             <h1 className="text-3xl md:text-4xl">
               Interview:
               <SuspendedItem
@@ -82,8 +87,37 @@ export default async function InterviewPage({
             }
           />
         </div>
+        <Suspense
+          fallback={<Loader2Icon className="animate-spin size-24 mx-auto" />}
+        >
+          <Messages interview={interview} />
+        </Suspense>
       </div>
     </div>
+  );
+}
+
+async function Messages({
+  interview,
+}: {
+  interview: Promise<{ humeChatId: string | null }>;
+}) {
+  const { user, redirectToSignIn } = await getCurrentUser({ allData: true });
+  if (user == null) return redirectToSignIn();
+
+  const { humeChatId } = await interview;
+  if (humeChatId == null) return notFound();
+
+  const condensedMessages = condenseChatMessages(
+    await fetchChatMessages(humeChatId),
+  );
+
+  return (
+    <CondensedMessages
+      messages={condensedMessages}
+      user={user}
+      className="max-w-5xl mx-auto"
+    />
   );
 }
 
