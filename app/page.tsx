@@ -1,13 +1,5 @@
 import { ThemeToggle } from "@/components/ThemeToggle";
-import {
-  ClerkProvider,
-  SignInButton,
-  SignUp,
-  SignUpButton,
-  SignedIn,
-  SignedOut,
-  UserButton,
-} from "@clerk/nextjs";
+import { SignInButton, UserButton } from "@clerk/nextjs";
 import { PricingTable } from "./services/clerk/components/PricingTable";
 
 export default function HomePage() {

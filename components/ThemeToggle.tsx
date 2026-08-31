@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 
 import { Monitor, Moon, Sun } from "lucide-react";
 import { useTheme } from "next-themes";
@@ -30,11 +30,14 @@ const themes = [
 
 export function ThemeToggle() {
   const { setTheme, theme, resolvedTheme } = useTheme();
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  // next-themes cannot resolve a theme during SSR, so the trigger has to wait
+  // for hydration. useSyncExternalStore reports false on the server and true on
+  // the client without the extra setState-in-effect render pass.
+  const mounted = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false,
+  );
 
   if (!mounted) {
     return null;

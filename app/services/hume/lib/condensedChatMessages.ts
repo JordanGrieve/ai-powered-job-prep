@@ -1,5 +1,8 @@
 import { ConnectionMessage } from "@humeai/voice-react";
-import { JsonMessage, ReturnChatEvent } from "hume/api/resources/empathicVoice";
+import { Hume } from "hume";
+
+type JsonMessage = Hume.empathicVoice.JsonMessage;
+type ReturnChatEvent = Hume.empathicVoice.ReturnChatEvent;
 
 type Message = JsonMessage | ConnectionMessage | ReturnChatEvent;
 

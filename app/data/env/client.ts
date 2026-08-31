@@ -14,6 +14,7 @@ export const env = createEnv({
       .min(1, "NEXT_PUBLIC_HUME_CONFIG_ID is required"),
   },
   emptyStringAsUndefined: true,
+  skipValidation: process.env.SKIP_ENV_VALIDATION === "1",
   experimental__runtimeEnv: {
     NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY:
       process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY,

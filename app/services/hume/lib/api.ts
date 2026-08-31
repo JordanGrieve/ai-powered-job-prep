@@ -1,6 +1,7 @@
 import { env } from "@/app/data/env/server";
-import { HumeClient } from "hume";
-import { ReturnChatEvent } from "hume/api/resources/empathicVoice";
+import { Hume, HumeClient } from "hume";
+
+type ReturnChatEvent = Hume.empathicVoice.ReturnChatEvent;
 
 export async function fetchChatMessages(humeChatId: string) {
   "use cache";

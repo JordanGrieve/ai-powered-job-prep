@@ -44,8 +44,11 @@ export async function updateJobInfo(
       userId: jobInfoTable.userId,
     });
 
+  // A zero-row UPDATE returns [], and revalidateJobInfoCache destructures its
+  // argument - passing undefined through would throw an opaque 500.
+  if (updatedJobInfo == null) return null;
+
   revalidateJobInfoCache(updatedJobInfo);
 
   return updatedJobInfo;
 }
-``;

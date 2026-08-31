@@ -6,7 +6,6 @@ import { z } from "zod";
 import {
   experienceLevel,
   jobInfoTable,
-  type ExperienceLevel,
 } from "@/app/drizzle/schema/jobInfo";
 import {
   Form,
@@ -30,7 +29,7 @@ import { Button } from "@/components/ui/button";
 import { jobInfoSchema } from "../schema";
 import { LoadingSwap } from "@/components/ui/loading-swap";
 import { createJobInfo, updateJobInfo } from "../actions";
-import { toast } from "sonner";
+import { errorToast } from "@/lib/errorToast";
 
 export type JobInfoSchema = z.infer<typeof jobInfoSchema>;
 
@@ -56,10 +55,11 @@ export function JobInfoForm({
     const action = jobInfo
       ? updateJobInfo.bind(null, jobInfo.id)
       : createJobInfo;
+    // Both actions redirect() on success, so anything returned here is an error.
     const res = await action(data);
 
-    if (res.error) {
-      toast.error(res.message);
+    if (res?.error) {
+      errorToast(res.message);
     }
   }
 

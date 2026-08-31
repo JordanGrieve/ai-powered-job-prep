@@ -13,7 +13,6 @@ import { errorToast } from "@/lib/errorToast";
 import { useVoice, VoiceReadyState } from "@humeai/voice-react";
 import {
   Loader2Icon,
-  Mic,
   MicIcon,
   MicOffIcon,
   PhoneOffIcon,
@@ -33,7 +32,7 @@ export function StartCall({
   >;
   user: {
     name: string;
-    imageUrl: string | null;
+    imageUrl: string;
   };
 }) {
   const { connect, readyState, chatMetadata, callDurationTimestamp } =
@@ -41,7 +40,10 @@ export function StartCall({
   const [interviewId, setInterviewId] = useState<string | null>(null);
   const durationRef = useRef(callDurationTimestamp);
   const router = useRouter();
-  durationRef.current = callDurationTimestamp;
+
+  useEffect(() => {
+    durationRef.current = callDurationTimestamp;
+  }, [callDurationTimestamp]);
 
   // Sync chat ID
   useEffect(() => {
@@ -133,7 +135,7 @@ export function StartCall({
 function Messages({
   user,
 }: {
-  user: { name: string; imageUrl: string | null };
+  user: { name: string; imageUrl: string };
 }) {
   const { messages, fft } = useVoice();
 

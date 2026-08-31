@@ -10,9 +10,13 @@ export const env = createEnv({
     DB_PORT: z.string().min(1, "DB_PORT is required"),
     ARCJET_KEY: z.string().min(1, "ARCJET_KEY is required"),
     CLERK_SECRET_KEY: z.string().min(1, "CLERK_SECRET_KEY is required"),
+    CLERK_WEBHOOK_SIGNING_SECRET: z
+      .string()
+      .min(1, "CLERK_WEBHOOK_SIGNING_SECRET is required"),
     HUME_API_KEY: z.string().min(1, "HUME_API_KEY is required"),
     HUME_SECRET_KEY: z.string().min(1, "HUME_SECRET_KEY is required"),
     GEMINI_API_KEY: z.string().min(1, "GEMINI_API_KEY is required"),
+    GEMINI_MODEL: z.string().min(1).default("gemini-2.5-flash"),
   },
   createFinalSchema: (env) => {
     return z.object(env).transform((val) => {
