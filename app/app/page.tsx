@@ -17,6 +17,8 @@ import {
 import { JobInfoForm } from "../features/jobInfos/components/JobInfoForm";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { redirect } from "next/navigation";
+import { getInterviewUsage } from "../features/interviews/permissions";
 
 export default function AppPage() {
   return (
@@ -33,10 +35,18 @@ export default function AppPage() {
 }
 
 async function JobInfos() {
-  const { userId, redirectToSignIn } = await getCurrentUser();
+  const { userId, user, redirectToSignIn } = await getCurrentUser({
+    allData: true,
+  });
   if (userId == null) return redirectToSignIn();
+  // The Clerk webhook writes the users row. Until it lands, an insert would
+  // hit a foreign-key violation, so hold the user on /onboarding.
+  if (user == null) return redirect("/onboarding");
 
-  const jobInfos = await getJobInfos(userId);
+  const [jobInfos, usage] = await Promise.all([
+    getJobInfos(userId),
+    getInterviewUsage(),
+  ]);
 
   if (jobInfos.length === 0) {
     return <NoJobInfos />;
@@ -44,9 +54,12 @@ async function JobInfos() {
   return (
     <div className="container my-4">
       <div className="flex gap-2 justify-between mb-6">
-        <h1 className="text-3xl md:text-4xl; lg:text-5xl mb-4">
-          Select a job description
-        </h1>
+        <div>
+          <h1 className="text-3xl md:text-4xl; lg:text-5xl mb-4">
+            Select a job description
+          </h1>
+          <InterviewUsage usage={usage} />
+        </div>
         <Button asChild>
           <Link href="/app/job-infos/new">
             <PlusIcon />
@@ -97,6 +110,38 @@ async function JobInfos() {
         </Link>
       </div>
     </div>
+  );
+}
+
+// Tell the user where they stand BEFORE they commit to starting an interview,
+// rather than redirecting them to /app/upgrade after the fact.
+function InterviewUsage({
+  usage,
+}: {
+  usage: { used: number; limit: number | null; isUnlimited: boolean };
+}) {
+  if (usage.isUnlimited) {
+    return (
+      <p className="text-sm text-muted-foreground">
+        Unlimited interviews on your current plan.
+      </p>
+    );
+  }
+
+  const exhausted = usage.limit != null && usage.used >= usage.limit;
+
+  return (
+    <p className="text-sm text-muted-foreground">
+      {usage.used} of {usage.limit ?? 0} interviews used.{" "}
+      <Link
+        href="/app/upgrade"
+        className={`underline underline-offset-4 ${
+          exhausted ? "text-foreground" : ""
+        }`}
+      >
+        {exhausted ? "Upgrade to continue" : "View plans"}
+      </Link>
+    </p>
   );
 }
 

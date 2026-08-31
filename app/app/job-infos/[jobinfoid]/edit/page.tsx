@@ -8,6 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { and, eq } from "drizzle-orm";
 import { Loader2 } from "lucide-react";
 import { cacheTag } from "next/cache";
+import { notFound } from "next/navigation";
 import { Suspense } from "react";
 
 export default async function JobInfoNewPage({
@@ -40,7 +41,7 @@ async function SuspendedForm({ jobInfoId }: { jobInfoId: string }) {
   if (userId == null) return redirectToSignIn();
 
   const jobInfo = await getJobInfo(jobInfoId, userId);
-  if (jobInfo == null) throw new Error("Job info not found");
+  if (jobInfo == null) return notFound();
 
   return <JobInfoForm jobInfo={jobInfo} />;
 }

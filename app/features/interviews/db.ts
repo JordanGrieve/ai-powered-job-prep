@@ -26,6 +26,8 @@ export async function updateInterview(
     .where(eq(InterviewTable.id, id))
     .returning({ id: InterviewTable.id, jobInfoId: InterviewTable.jobInfoId });
 
+  if (newInterview == null) return null;
+
   revalidateInterviewCache(newInterview);
 
   return newInterview;

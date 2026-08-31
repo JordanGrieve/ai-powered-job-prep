@@ -16,32 +16,42 @@ import {
 import { and, eq } from "drizzle-orm";
 import { ArrowRightIcon } from "lucide-react";
 import { cacheTag } from "next/cache";
+import { notFound } from "next/navigation";
 import Link from "next/link";
 
+// `comingSoon` entries render as a visibly disabled card that does not
+// navigate. Nothing intercepts a missing route - no catch-all, no rewrites -
+// so linking to one lands the user on Next's default unstyled 404, which reads
+// as a crash. This is the most reachable surface in the app, so the flag stays
+// until the segment actually exists.
 const options = [
   {
     label: "Answer Technical Questions",
     description:
-      "Challange yourself with practive questions tailortred to your job description",
+      "Challenge yourself with practice questions tailored to your job description",
     href: "questions",
+    comingSoon: false,
   },
   {
     label: "Practice Interviewing",
     description:
-      "Simulate a real interview with an AI interviewer that ask questions based on your job description",
+      "Simulate a real interview with an AI interviewer that asks questions based on your job description",
     href: "interviews",
+    comingSoon: false,
   },
   {
     label: "Refine your resume",
     description:
       "Get personalized feedback on how to improve your resume based on your job description",
     href: "resume",
+    comingSoon: false,
   },
   {
     label: "Update job description",
     description:
-      "This should only be used for minior updates to your job description. For major changes, we recommend creating a new job description to keep track of your progress over time.",
+      "This should only be used for minor updates to your job description. For major changes, we recommend creating a new job description to keep track of your progress over time.",
     href: "edit",
+    comingSoon: false,
   },
 ];
 
@@ -56,7 +66,7 @@ export default async function JobInfoPage({
     async ({ userId, redirectToSignIn }) => {
       if (userId == null) return redirectToSignIn();
       const jobInfo = await getJobInfo(jobInfoId, userId);
-      if (jobInfo == null) throw new Error("Job info not found");
+      if (jobInfo == null) return notFound();
       return jobInfo;
     },
   );
@@ -99,23 +109,41 @@ export default async function JobInfoPage({
           </p>
         </header>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-col-3 gap-6 has-hover:*:not-hover:opacity-70">
-          {options.map((option) => (
-            <Link
-              className="hover:scale-[1.02] transition-[transform_opacity]"
-              href={`/app/job-infos/${jobInfoId}/${option.href}`}
-              key={option.href}
-            >
-              <Card className="h-full flex items-start justify-between flex-row">
-                <CardHeader className="grow">
-                  <CardTitle className="text-lg">{option.label}</CardTitle>
-                  <CardDescription>{option.description}</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <ArrowRightIcon className="size-6" />
-                </CardContent>
-              </Card>
-            </Link>
-          ))}
+          {options.map((option) =>
+            option.comingSoon ? (
+              <div
+                key={option.href}
+                aria-disabled="true"
+                className="cursor-not-allowed opacity-60"
+              >
+                <Card className="h-full flex items-start justify-between flex-row">
+                  <CardHeader className="grow">
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      {option.label}
+                      <Badge variant="outline">Coming soon</Badge>
+                    </CardTitle>
+                    <CardDescription>{option.description}</CardDescription>
+                  </CardHeader>
+                </Card>
+              </div>
+            ) : (
+              <Link
+                className="hover:scale-[1.02] transition-[transform_opacity]"
+                href={`/app/job-infos/${jobInfoId}/${option.href}`}
+                key={option.href}
+              >
+                <Card className="h-full flex items-start justify-between flex-row">
+                  <CardHeader className="grow">
+                    <CardTitle className="text-lg">{option.label}</CardTitle>
+                    <CardDescription>{option.description}</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <ArrowRightIcon className="size-6" />
+                  </CardContent>
+                </Card>
+              </Link>
+            ),
+          )}
         </div>
       </div>
     </div>

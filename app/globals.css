@@ -3,6 +3,14 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
+/* Tailwind v4 has no tailwind.config.*, so this @plugin directive is the only
+   way to register the typography plugin. Without it the `prose` classes in
+   MarkdownRenderer silently emit nothing (v4 does not warn on unknown
+   utilities) while Preflight still strips heading sizes, list markers and
+   paragraph margins - which rendered every AI feedback dialog as a wall of
+   undifferentiated text. */
+@plugin "@tailwindcss/typography";
+
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {

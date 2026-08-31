@@ -8,6 +8,7 @@ import { insertJobInfo, updateJobInfo as updateJobInfoDb } from "./db";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/app/drizzle/db";
 import { jobInfoTable } from "@/app/drizzle/schema/jobInfo";
+import { UserTable } from "@/app/drizzle/schema/user";
 import { cacheTag } from "next/cache";
 import { getJobInfoIdTag } from "./dbCache";
 
@@ -15,12 +16,32 @@ export async function createJobInfo(unsafeData: z.infer<typeof jobInfoSchema>) {
   const { userId } = await getCurrentUser();
 
   if (userId == null) {
-    throw new Error("User not authenticated");
+    return {
+      error: true,
+      message: "You don't have permission to do this",
+    };
   }
 
   const { success, data } = jobInfoSchema.safeParse(unsafeData);
   if (!success) {
-    throw new Error("Invalid job data");
+    return {
+      error: true,
+      message: "Invalid job data",
+    };
+  }
+
+  // The users row is written by the Clerk webhook, which can lag the session.
+  // Inserting before it lands raises a raw foreign-key violation the form
+  // cannot surface.
+  const user = await db.query.UserTable.findFirst({
+    where: eq(UserTable.id, userId),
+    columns: { id: true },
+  });
+  if (user == null) {
+    return {
+      error: true,
+      message: "Your account is still being set up. Please try again shortly.",
+    };
   }
 
   const jobInfo = await insertJobInfo({ ...data, userId });
@@ -59,6 +80,13 @@ export async function updateJobInfo(
   }
 
   const jobInfo = await updateJobInfoDb(id, data);
+
+  if (jobInfo == null) {
+    return {
+      error: true,
+      message: "Job info not found",
+    };
+  }
 
   redirect(`/app/job-infos/${jobInfo.id}`);
 }

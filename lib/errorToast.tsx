@@ -16,7 +16,9 @@ export function errorToast(message: string) {
             toast.dismiss(toastId);
           }}
         >
-          <Link href="/app/billing">Upgrade Plan</Link>
+          {/* /app/billing does not exist - /app/upgrade is the real pricing
+              page, and the server-side gate already redirects there. */}
+          <Link href="/app/upgrade">Upgrade Plan</Link>
         </Button>
       ),
     });

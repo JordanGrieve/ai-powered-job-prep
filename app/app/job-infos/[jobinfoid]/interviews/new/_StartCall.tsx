@@ -13,7 +13,6 @@ import { errorToast } from "@/lib/errorToast";
 import { useVoice, VoiceReadyState } from "@humeai/voice-react";
 import {
   Loader2Icon,
-  Mic,
   MicIcon,
   MicOffIcon,
   PhoneOffIcon,
@@ -33,22 +32,63 @@ export function StartCall({
   >;
   user: {
     name: string;
-    imageUrl: string | null;
+    imageUrl: string;
   };
 }) {
   const { connect, readyState, chatMetadata, callDurationTimestamp } =
     useVoice();
   const [interviewId, setInterviewId] = useState<string | null>(null);
   const durationRef = useRef(callDurationTimestamp);
+  // humeChatId is write-once server-side, so guard against a duplicate attempt
+  // when this effect re-runs.
+  const chatIdWrittenRef = useRef(false);
   const router = useRouter();
-  durationRef.current = callDurationTimestamp;
 
-  // Sync chat ID
   useEffect(() => {
-    if (chatMetadata?.chatId == null || interviewId == null) {
-      return;
-    }
-    updateInterview(interviewId, { humeChatId: chatMetadata.chatId });
+    durationRef.current = callDurationTimestamp;
+  }, [callDurationTimestamp]);
+
+  // Sync chat ID.
+  //
+  // This is the ONLY place humeChatId is ever set, and it gates everything
+  // downstream: a null humeChatId makes the detail page notFound(), excludes
+  // the interview from the list, and permanently blocks feedback generation.
+  // Firing and forgetting it meant a failed write burned a paid voice call and
+  // handed the user an unexplained 404 with no way to recover.
+  useEffect(() => {
+    const chatId = chatMetadata?.chatId;
+    if (chatId == null || interviewId == null) return;
+    if (chatIdWrittenRef.current) return;
+
+    let cancelled = false;
+    chatIdWrittenRef.current = true;
+
+    (async () => {
+      for (let attempt = 1; attempt <= 2; attempt++) {
+        try {
+          const res = await updateInterview(interviewId, {
+            humeChatId: chatId,
+          });
+          if (cancelled) return;
+          if (!res.error) return;
+          if (attempt === 2) {
+            chatIdWrittenRef.current = false;
+            errorToast(res.message);
+          }
+        } catch (error) {
+          console.error("[interview] failed to attach chat id", error);
+          if (cancelled) return;
+          if (attempt === 2) {
+            chatIdWrittenRef.current = false;
+            errorToast("We couldn't save this interview. Please try again.");
+          }
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [chatMetadata?.chatId, interviewId]);
 
   // Sync Duration
@@ -56,7 +96,11 @@ export function StartCall({
     if (interviewId == null) return;
     const intervalId = setInterval(() => {
       if (durationRef.current == null) return;
-      updateInterview(interviewId, { duration: durationRef.current });
+      // Best-effort: the authoritative write happens on disconnect. Catch so a
+      // transient failure does not surface as an unhandled rejection.
+      updateInterview(interviewId, { duration: durationRef.current }).catch(
+        (error) => console.error("[interview] duration sync failed", error),
+      );
     }, 10000);
     return () => clearInterval(intervalId);
   }, [chatMetadata?.chatId, interviewId]);
@@ -69,10 +113,27 @@ export function StartCall({
       return;
     }
 
-    if (durationRef.current != null) {
-      updateInterview(interviewId, { duration: durationRef.current });
-    }
-    router.push(`/app/job-infos/${jobInfo.id}/interviews/${interviewId}`);
+    let cancelled = false;
+
+    (async () => {
+      // Await before navigating - the previous code raced router.push and
+      // routinely lost the final duration segment.
+      if (durationRef.current != null) {
+        try {
+          await updateInterview(interviewId, {
+            duration: durationRef.current,
+          });
+        } catch (error) {
+          console.error("[interview] final duration write failed", error);
+        }
+      }
+      if (cancelled) return;
+      router.push(`/app/job-infos/${jobInfo.id}/interviews/${interviewId}`);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [interviewId, readyState, router, jobInfo.id]);
 
   if (readyState === VoiceReadyState.IDLE) {
@@ -91,6 +152,12 @@ export function StartCall({
             connect({
               auth: { type: "accessToken", value: accessToken },
               configId: env.NEXT_PUBLIC_HUME_CONFIG_ID,
+              // SOURCE OF TRUTH for the Hume EVI contract. The config named by
+              // NEXT_PUBLIC_HUME_CONFIG_ID must declare these exact four
+              // template variables in its prompt. Hume silently DROPS session
+              // variables it does not recognise, so a mismatch produces an
+              // interviewer that ignores the job context with no error
+              // anywhere. See the README's "Hume EVI configuration" section.
               sessionSettings: {
                 type: "session_settings",
                 variables: {
@@ -133,7 +200,7 @@ export function StartCall({
 function Messages({
   user,
 }: {
-  user: { name: string; imageUrl: string | null };
+  user: { name: string; imageUrl: string };
 }) {
   const { messages, fft } = useVoice();
 

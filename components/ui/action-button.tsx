@@ -2,7 +2,7 @@
 
 import { type ComponentProps, type ReactNode, useTransition } from "react"
 import { Button } from "@/components/ui/button"
-import { toast } from "sonner"
+import { errorToast } from "@/lib/errorToast"
 import { LoadingSwap } from "@/components/ui/loading-swap"
 import {
   AlertDialog,
@@ -30,8 +30,15 @@ export function ActionButton({
 
   function performAction() {
     startTransition(async () => {
-      const data = await action()
-      if (data.error) toast.error(data.message ?? "Error")
+      // Without the catch, a rejected action leaves the button silently
+      // un-spinning with nothing but an opaque digest in the server logs.
+      try {
+        const data = await action()
+        if (data.error) errorToast(data.message ?? "Error")
+      } catch (error) {
+        console.error("[action-button] action threw", error)
+        errorToast("Something went wrong. Please try again.")
+      }
     })
   }
 

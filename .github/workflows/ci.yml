@@ -1,0 +1,82 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm run lint
+
+      - run: npm run typecheck
+
+      - run: npm test
+
+      # `next build` validates the environment at module load before it reaches
+      # any application code - app/data/env/{server,client}.ts require 15
+      # non-empty variables with emptyStringAsUndefined. .env.example carries
+      # placeholders for all of them, including a structurally valid Clerk
+      # publishable key (Clerk rejects a bare pk_test_xxxx during prerender), so
+      # CI can build without any real credentials.
+      - name: Build
+        run: |
+          cp .env.example .env
+          npm run build
+
+  # Migrations run against the real database on release, never in the PR job.
+  # Wire this to your deploy: it must complete BEFORE the new build serves
+  # traffic. Requires a DATABASE_URL secret; the job is skipped until one is set.
+  migrate:
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    needs: verify
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
+
+      - name: Apply Drizzle migrations
+        env:
+          DB_HOST: ${{ secrets.DB_HOST }}
+          DB_PORT: ${{ secrets.DB_PORT }}
+          DB_USER: ${{ secrets.DB_USER }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          DB_NAME: ${{ secrets.DB_NAME }}
+        # drizzle.config.ts imports the whole server env schema, so the
+        # non-database variables must still be present. .env.example supplies
+        # placeholders for those; dotenv does not overwrite variables already
+        # set in the environment, so the real DB_* secrets above win.
+        #
+        # The guard matters: without it, an unconfigured repo falls back to the
+        # .env.example placeholders, dials localhost:5432 on the runner, and
+        # fails - putting a red X on main that means nothing. The `secrets`
+        # context is not available in a job-level `if`, so the check lives here.
+        run: |
+          if [ -z "$DB_HOST" ]; then
+            echo "::notice title=Migrations skipped::No DB_* secrets are configured on this repository, so there is no database to migrate. Add DB_HOST, DB_PORT, DB_USER, DB_PASSWORD and DB_NAME to enable this step."
+            exit 0
+          fi
+          cp .env.example .env
+          npm run db:migrate
