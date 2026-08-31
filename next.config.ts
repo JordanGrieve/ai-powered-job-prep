@@ -28,6 +28,10 @@ const csp = [
 const nextConfig: NextConfig = {
   experimental: {
     useCache: true,
+    serverActions: {
+      // Resume uploads go through a server action; the default cap is 1MB.
+      bodySizeLimit: "6mb",
+    },
   },
   skipTrailingSlashRedirect: true,
   async headers() {

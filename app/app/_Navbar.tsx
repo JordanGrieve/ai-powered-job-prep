@@ -22,13 +22,13 @@ import { useParams, usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Suspense, use } from "react";
 
-// Resume has no route segment yet. It stays visible as a disabled button
-// rather than a link, so the nav does not silently lose the item but also
-// cannot navigate to Next's default 404. Flip `ready` when the route lands.
+// Every nav item now has a route segment. `ready: false` renders a disabled
+// button instead of a link — use it for anything added before its segment
+// exists, so the nav can never point at Next's default 404.
 const navLinks = [
   { name: "Interviews", href: "interviews", Icon: SpeechIcon, ready: true },
   { name: "Questions", href: "questions", Icon: BookOpenIcon, ready: true },
-  { name: "Resume", href: "resume", Icon: FileSlidersIcon, ready: false },
+  { name: "Resume", href: "resume", Icon: FileSlidersIcon, ready: true },
 ];
 
 type NavUser = { name: string; imageUrl: string } | null | undefined;

@@ -44,7 +44,7 @@ const options = [
     description:
       "Get personalized feedback on how to improve your resume based on your job description",
     href: "resume",
-    comingSoon: true,
+    comingSoon: false,
   },
   {
     label: "Update job description",

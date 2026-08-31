@@ -1,6 +1,10 @@
 import { verifyWebhook } from "@clerk/nextjs/webhooks";
 import { NextRequest, NextResponse } from "next/server";
-import { upsertUser, deleteUser } from "@/app/features/users/db";
+import {
+  upsertUser,
+  deleteUser,
+  recordSubscriptionStatus,
+} from "@/app/features/users/db";
 import { env } from "@/app/data/env/server";
 import type { WebhookEvent } from "@clerk/nextjs/server";
 import { createLogger } from "@/lib/logger";
@@ -87,8 +91,39 @@ export async function POST(request: NextRequest) {
         log.info("user deleted", { userId: event.data.id });
         break;
       }
-      default:
+      default: {
+        // Clerk Billing lifecycle. Entitlements are read live via auth().has(),
+        // so nothing here grants or revokes access - this only records the
+        // change so past_due and cancellation can be messaged in the UI, and
+        // so a payment failure is visible in the logs at all.
+        if (
+          event.type.startsWith("subscription") ||
+          event.type.startsWith("paymentAttempt")
+        ) {
+          const data = event.data as { id?: string; status?: string } & {
+            payer?: { user_id?: string };
+            user_id?: string;
+          };
+          const userId = data.payer?.user_id ?? data.user_id;
+
+          log.info("billing event", {
+            eventType: event.type,
+            userId,
+            status: data.status,
+          });
+
+          if (userId) {
+            await recordSubscriptionStatus(
+              userId,
+              data.status ?? event.type,
+              new Date(),
+            );
+          }
+          break;
+        }
+
         log.info("ignoring event type", { eventType: event.type });
+      }
     }
 
     return NextResponse.json({ success: true }, { status: 200 });

@@ -17,6 +17,29 @@ export async function upsertUser(user: typeof UserTable.$inferInsert) {
   revalidateUserCache(user.id);
 }
 
+/**
+ * Records a Clerk Billing lifecycle change. Deliberately does NOT gate access -
+ * auth().has() is the authoritative entitlement check and is always live. This
+ * exists so a past_due or cancelled subscription can be surfaced in the UI, and
+ * so there is a record that the event arrived.
+ */
+export async function recordSubscriptionStatus(
+  userId: string,
+  status: string,
+  occurredAt: Date,
+) {
+  const [updated] = await db
+    .update(UserTable)
+    .set({ subscriptionStatus: status, subscriptionUpdatedAt: occurredAt })
+    .where(eq(UserTable.id, userId))
+    .returning({ id: UserTable.id });
+
+  if (updated == null) return null;
+
+  revalidateUserCache(userId);
+  return updated;
+}
+
 export async function deleteUser(id: string) {
   await db.delete(UserTable).where(eq(UserTable.id, id));
 
