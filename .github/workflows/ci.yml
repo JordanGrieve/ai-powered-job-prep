@@ -68,6 +68,15 @@ jobs:
         # non-database variables must still be present. .env.example supplies
         # placeholders for those; dotenv does not overwrite variables already
         # set in the environment, so the real DB_* secrets above win.
+        #
+        # The guard matters: without it, an unconfigured repo falls back to the
+        # .env.example placeholders, dials localhost:5432 on the runner, and
+        # fails - putting a red X on main that means nothing. The `secrets`
+        # context is not available in a job-level `if`, so the check lives here.
         run: |
+          if [ -z "$DB_HOST" ]; then
+            echo "::notice title=Migrations skipped::No DB_* secrets are configured on this repository, so there is no database to migrate. Add DB_HOST, DB_PORT, DB_USER, DB_PASSWORD and DB_NAME to enable this step."
+            exit 0
+          fi
           cp .env.example .env
           npm run db:migrate
