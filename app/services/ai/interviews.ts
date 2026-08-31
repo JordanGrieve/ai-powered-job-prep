@@ -3,6 +3,7 @@ import { fetchChatMessages } from "../hume/lib/api";
 import { generateText } from "ai";
 import { google } from "./models/google";
 import { env } from "@/app/data/env/server";
+import { createLogger } from "@/lib/logger";
 
 // Sized to sit comfortably under the route's maxDuration so a hung provider
 // call is aborted by us rather than killed by the platform.
@@ -10,6 +11,8 @@ const GENERATION_TIMEOUT_MS = 100_000;
 // The rubric asks for seven scored sections plus an overall summary; this is
 // generous for that while still bounding a runaway generation.
 const MAX_OUTPUT_TOKENS = 4096;
+
+const log = createLogger("gemini");
 
 type FeedbackResult =
   | { error: true; message: string }
@@ -99,10 +102,7 @@ export async function generateAiInterviewFeedback({
   try {
     messages = await fetchChatMessages(humeChatId);
   } catch (error) {
-    console.error(
-      `[ai-feedback] failed to fetch Hume transcript for chat ${humeChatId}`,
-      error,
-    );
+    log.error("failed to fetch Hume transcript", error, { humeChatId });
     return {
       error: true,
       message:
@@ -161,9 +161,12 @@ ${JSON.stringify(formattedMessages)}
     // `if (feedback == null)` check was dead code and truncated or empty
     // output was written to the database with no way to regenerate it.
     if (text.trim().length === 0 || finishReason !== "stop") {
-      console.error(
-        `[ai-feedback] unusable generation for chat ${humeChatId} (model=${env.GEMINI_MODEL}, finishReason=${finishReason}, length=${text.length})`,
-      );
+      log.error("unusable generation", undefined, {
+        humeChatId,
+        model: env.GEMINI_MODEL,
+        finishReason,
+        length: text.length,
+      });
       return {
         error: true,
         message:
@@ -173,10 +176,10 @@ ${JSON.stringify(formattedMessages)}
 
     return { error: false, text };
   } catch (error) {
-    console.error(
-      `[ai-feedback] generation failed for chat ${humeChatId} (model=${env.GEMINI_MODEL})`,
-      error,
-    );
+    log.error("generation failed", error, {
+      humeChatId,
+      model: env.GEMINI_MODEL,
+    });
 
     const message = error instanceof Error ? error.message : String(error);
     if (error instanceof Error && error.name === "TimeoutError") {

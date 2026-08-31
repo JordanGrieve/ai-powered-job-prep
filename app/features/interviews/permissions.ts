@@ -3,6 +3,9 @@ import { InterviewTable, jobInfoTable } from "@/app/drizzle/schema";
 import { getCurrentUser } from "@/app/services/clerk/lib/getCurrentUser";
 import { hasPermission } from "@/app/services/clerk/lib/hasPermission";
 import { and, count, eq, isNotNull } from "drizzle-orm";
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger("permissions");
 
 export async function canCreateInterview() {
   return await Promise.any([
@@ -15,7 +18,13 @@ export async function canCreateInterview() {
         return Promise.reject();
       },
     ),
-  ]).catch(() => false);
+  ]).catch((error) => {
+    // AggregateError here means every branch rejected. That is USUALLY a
+    // legitimate denial, but a failing count query or a failing auth() call
+    // lands here too and is indistinguishable - so at least record it.
+    log.warn("interview permission check denied", { error: String(error) });
+    return false;
+  });
 }
 
 export async function getUserInterviewCount() {

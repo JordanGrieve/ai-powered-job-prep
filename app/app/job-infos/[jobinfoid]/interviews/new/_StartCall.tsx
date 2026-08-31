@@ -152,6 +152,12 @@ export function StartCall({
             connect({
               auth: { type: "accessToken", value: accessToken },
               configId: env.NEXT_PUBLIC_HUME_CONFIG_ID,
+              // SOURCE OF TRUTH for the Hume EVI contract. The config named by
+              // NEXT_PUBLIC_HUME_CONFIG_ID must declare these exact four
+              // template variables in its prompt. Hume silently DROPS session
+              // variables it does not recognise, so a mismatch produces an
+              // interviewer that ignores the job context with no error
+              // anywhere. See the README's "Hume EVI configuration" section.
               sessionSettings: {
                 type: "session_settings",
                 variables: {

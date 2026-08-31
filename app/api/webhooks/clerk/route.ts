@@ -3,6 +3,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { upsertUser, deleteUser } from "@/app/features/users/db";
 import { env } from "@/app/data/env/server";
 import type { WebhookEvent } from "@clerk/nextjs/server";
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger("clerk-webhook");
 
 /**
  * Clerk types first_name/last_name as `string | null`, so the previous
@@ -33,7 +36,7 @@ export async function POST(request: NextRequest) {
       signingSecret: env.CLERK_WEBHOOK_SIGNING_SECRET,
     });
   } catch (error) {
-    console.error("[clerk-webhook] signature verification failed", error);
+    log.error("signature verification failed", error);
     return NextResponse.json(
       { error: "Invalid webhook signature" },
       { status: 401 },
@@ -50,9 +53,10 @@ export async function POST(request: NextRequest) {
         )?.email_address;
 
         if (!email) {
-          console.error(
-            `[clerk-webhook] ${event.type} for ${clerkData.id}: no primary email`,
-          );
+          log.error("no primary email on payload", undefined, {
+            eventType: event.type,
+            userId: clerkData.id,
+          });
           return NextResponse.json(
             { error: "Email not found" },
             { status: 400 },
@@ -68,30 +72,30 @@ export async function POST(request: NextRequest) {
           updatedAt: new Date(clerkData.updated_at),
         });
 
-        console.info(`[clerk-webhook] ${event.type} applied for ${clerkData.id}`);
+        log.info("user upserted", { eventType: event.type, userId: clerkData.id });
         break;
       }
       case "user.deleted": {
         if (!event.data.id) {
-          console.error("[clerk-webhook] user.deleted with no id");
+          log.error("user.deleted with no id");
           return NextResponse.json(
             { error: "User ID not found" },
             { status: 400 },
           );
         }
         await deleteUser(event.data.id);
-        console.info(`[clerk-webhook] user.deleted applied for ${event.data.id}`);
+        log.info("user deleted", { userId: event.data.id });
         break;
       }
       default:
-        console.info(`[clerk-webhook] ignoring event type ${event.type}`);
+        log.info("ignoring event type", { eventType: event.type });
     }
 
     return NextResponse.json({ success: true }, { status: 200 });
   } catch (error) {
     // A database failure IS retryable - return 500 so Clerk backs off and
     // redelivers instead of dropping the event on a 400.
-    console.error(`[clerk-webhook] handler failed for ${event.type}`, error);
+    log.error("handler failed", error, { eventType: event.type });
     return NextResponse.json(
       { error: "Failed to process webhook" },
       { status: 500 },
