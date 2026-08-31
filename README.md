@@ -114,13 +114,17 @@ Entitlements are **not** in this repo. `app/services/clerk/lib/hasPermission.ts`
 resolves Clerk Billing *features* by slug via `auth().has({ feature })`, and the
 plans that carry them are configured in the Clerk dashboard.
 
-| Feature slug | Gates | Enforced? |
+| Feature slug | Gates | Enforced in |
 | --- | --- | --- |
-| `unlimited_interviews` | Unlimited mock interviews | Yes |
-| `1_interview` | A single interview (free tier) | Yes |
-| `5_questions` | Question practice cap | **No** — reserved |
-| `unlimited_questions` | Unlimited question practice | **No** — reserved |
-| `unlimited_resume_analysis` | Resume analysis | **No** — reserved |
+| `unlimited_interviews` | Unlimited mock interviews | `features/interviews/permissions.ts` |
+| `1_interview` | A single interview (free tier) | `features/interviews/permissions.ts` |
+| `5_questions` | Five practice questions | `features/questions/permissions.ts` |
+| `unlimited_questions` | Unlimited practice questions | `features/questions/permissions.ts` |
+| `unlimited_resume_analysis` | Resume analysis | `features/resume/permissions.ts` |
+
+Every slug is now enforced server-side, in the action as well as the page — the
+page check is a redirect for the user's benefit; the action check is what stops
+a direct POST.
 
 Two things to know:
 
@@ -132,8 +136,19 @@ Two things to know:
   anywhere pointing at the cause. If nobody can start an interview on a fresh
   Clerk instance, check this first.
 
-The three reserved slugs are declared in the `Permission` union but have no
-callers. They are sold by the pricing table and enforced nowhere.
+## What the app does
+
+Three things, each scoped to one job description:
+
+- **Practice interviewing** — a live Hume EVI voice conversation, then written
+  Gemini feedback scored across seven categories.
+- **Answer technical questions** — generated at a chosen difficulty, with an
+  AI review of the answer you type. Answers are not persisted.
+- **Refine your resume** — upload a PDF (or `.txt`/`.md`) and get it assessed
+  against that specific role. The file is sent to Gemini inline and is never
+  stored.
+
+Plus `/app/billing` for plan, usage and subscription management.
 
 ## Hume EVI configuration
 
