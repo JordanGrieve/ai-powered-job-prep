@@ -20,17 +20,17 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 
 // `comingSoon` entries render as a visibly disabled card that does not
-// navigate. There is no questions/ or resume/ route segment yet, and nothing
-// intercepts the miss - no catch-all, no rewrites - so linking to them landed
-// the user on Next's default unstyled 404, which reads as a crash. This is the
-// most reachable surface in the app.
+// navigate. Nothing intercepts a missing route - no catch-all, no rewrites -
+// so linking to one lands the user on Next's default unstyled 404, which reads
+// as a crash. This is the most reachable surface in the app, so the flag stays
+// until the segment actually exists.
 const options = [
   {
     label: "Answer Technical Questions",
     description:
       "Challenge yourself with practice questions tailored to your job description",
     href: "questions",
-    comingSoon: true,
+    comingSoon: false,
   },
   {
     label: "Practice Interviewing",

@@ -22,12 +22,12 @@ import { useParams, usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Suspense, use } from "react";
 
-// Questions and Resume have no route segment yet. They stay visible as
-// disabled buttons rather than links so the nav does not silently lose two
-// items, but they no longer navigate to Next's default 404.
+// Resume has no route segment yet. It stays visible as a disabled button
+// rather than a link, so the nav does not silently lose the item but also
+// cannot navigate to Next's default 404. Flip `ready` when the route lands.
 const navLinks = [
   { name: "Interviews", href: "interviews", Icon: SpeechIcon, ready: true },
-  { name: "Questions", href: "questions", Icon: BookOpenIcon, ready: false },
+  { name: "Questions", href: "questions", Icon: BookOpenIcon, ready: true },
   { name: "Resume", href: "resume", Icon: FileSlidersIcon, ready: false },
 ];
 
