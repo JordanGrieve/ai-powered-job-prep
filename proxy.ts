@@ -23,18 +23,20 @@ const isPublicRoute = createRouteMatcher([
  */
 const isWebhookRoute = createRouteMatcher(["/api/webhooks/(.*)"]);
 
+const mode = env.ARCJET_MODE;
+
 const aj = arcjet({
   key: env.ARCJET_KEY,
   rules: [
     shield({
-      mode: "LIVE", // will block requests. Use "DRY_RUN" to log only
+      mode, // LIVE blocks requests; DRY_RUN logs only (used by the e2e suite)
     }),
     detectBot({
-      mode: "LIVE",
+      mode,
       allow: ["CATEGORY:SEARCH_ENGINE", "CATEGORY:MONITOR", "CATEGORY:PREVIEW"],
     }),
     slidingWindow({
-      mode: "LIVE",
+      mode,
       interval: "1m",
       max: 50,
     }),

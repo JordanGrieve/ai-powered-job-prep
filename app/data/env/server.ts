@@ -9,6 +9,10 @@ export const env = createEnv({
     DB_NAME: z.string().min(1, "DB_NAME is required"),
     DB_PORT: z.string().min(1, "DB_PORT is required"),
     ARCJET_KEY: z.string().min(1, "ARCJET_KEY is required"),
+    // DRY_RUN lets the Playwright suite through - Arcjet detectBot runs in
+    // LIVE mode ahead of clerkMiddleware and would 403 headless Chromium on
+    // its first request. Never set this to DRY_RUN in production.
+    ARCJET_MODE: z.enum(["LIVE", "DRY_RUN"]).default("LIVE"),
     CLERK_SECRET_KEY: z.string().min(1, "CLERK_SECRET_KEY is required"),
     CLERK_WEBHOOK_SIGNING_SECRET: z
       .string()
