@@ -20,18 +20,28 @@ import Link from "next/link";
 import UserAvatar from "../features/users/components/UserAvatar";
 import { useParams, usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { Suspense, use } from "react";
 
+// Questions and Resume have no route segment yet. They stay visible as
+// disabled buttons rather than links so the nav does not silently lose two
+// items, but they no longer navigate to Next's default 404.
 const navLinks = [
-  { name: "Interviews", href: "interviews", Icon: SpeechIcon },
-  { name: "Questions", href: "questions", Icon: BookOpenIcon },
-  { name: "Resume", href: "resume", Icon: FileSlidersIcon },
+  { name: "Interviews", href: "interviews", Icon: SpeechIcon, ready: true },
+  { name: "Questions", href: "questions", Icon: BookOpenIcon, ready: false },
+  { name: "Resume", href: "resume", Icon: FileSlidersIcon, ready: false },
 ];
 
-export function Navbar({
-  user,
-}: {
-  user: { name: string; imageUrl: string } | null | undefined;
-}) {
+type NavUser = { name: string; imageUrl: string } | null | undefined;
+
+// Only the avatar depends on the user, so only the avatar suspends. Wrapping
+// the whole Navbar would blank the logo, nav links and theme toggle for no
+// reason.
+function NavAvatar({ userPromise }: { userPromise: Promise<NavUser> }) {
+  const user = use(userPromise);
+  return <UserAvatar user={user} />;
+}
+
+export function Navbar({ userPromise }: { userPromise: Promise<NavUser> }) {
   const { openUserProfile, signOut } = useClerk();
   const { jobinfoid } = useParams();
   const pathName = usePathname();
@@ -45,19 +55,33 @@ export function Navbar({
 
       <div className="flex items-center gap-2">
         {typeof jobinfoid === "string" &&
-          navLinks.map(({ name, href, Icon }) => {
+          navLinks.map(({ name, href, Icon, ready }) => {
             const hrefPath = `/app/job-infos/${jobinfoid}/${href}`;
             const isActive = pathName === hrefPath;
 
+            if (!ready) {
+              return (
+                <Button
+                  variant="ghost"
+                  key={name}
+                  disabled
+                  title={`${name} is coming soon`}
+                  className="max-sm:hidden"
+                >
+                  <Icon />
+                  {name}
+                </Button>
+              );
+            }
+
             return (
               <Button
-                variant={pathName === href ? "secondary" : "ghost"}
+                variant={isActive ? "secondary" : "ghost"}
                 key={name}
                 asChild
                 className="cursor-pointer max-sm:hidden"
               >
                 <Link
-                  key={name}
                   href={hrefPath}
                   className={`flex items-center gap-2 ${
                     isActive ? "text-primary" : "text-muted"
@@ -73,7 +97,11 @@ export function Navbar({
         <ThemeToggle />
         <DropdownMenu>
           <DropdownMenuTrigger>
-            <UserAvatar user={user} />
+            <Suspense
+              fallback={<div className="size-8 rounded-full bg-muted animate-pulse" />}
+            >
+              <NavAvatar userPromise={userPromise} />
+            </Suspense>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuItem onClick={() => openUserProfile()}>
