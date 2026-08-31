@@ -9,6 +9,11 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   });
 
   if (userId == null) return redirect("/");
+  // A signed-in Clerk user whose users row does not exist yet must not reach
+  // the app: the Navbar renders an empty avatar and createJobInfo would hit a
+  // foreign-key violation. /onboarding polls until the webhook lands and then
+  // bounces back here.
+  if (user == null) return redirect("/onboarding");
 
   return (
     <>

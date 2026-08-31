@@ -5,7 +5,8 @@ import { Suspense } from "react";
 import { getJobInfoIdTag } from "../dbCache";
 import { db } from "@/app/drizzle/db";
 import { jobInfoTable } from "@/app/drizzle/schema/jobInfo";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
+import { getCurrentUser } from "@/app/services/clerk/lib/getCurrentUser";
 
 export function JobInfoBackLink({
   jobInfoId,
@@ -27,16 +28,24 @@ export function JobInfoBackLink({
 }
 
 async function JobName({ jobInfoId }: { jobInfoId: string }) {
-  const jobInfo = await getJobInfo(jobInfoId);
+  // This link renders outside the Suspense boundary that performs the
+  // ownership check, so without scoping the query here the job name of
+  // another user's record streams to anyone holding its UUID.
+  const { userId } = await getCurrentUser();
+  if (userId == null) return "Job Description";
+
+  const jobInfo = await getJobInfo(jobInfoId, userId);
 
   return jobInfo?.name ?? "Job Description";
 }
 
-async function getJobInfo(id: string) {
+// userId is a parameter rather than a closure read so it forms part of the
+// "use cache" key and one user's result cannot be served to another.
+async function getJobInfo(id: string, userId: string) {
   "use cache";
   cacheTag(getJobInfoIdTag(id));
 
   return db.query.jobInfoTable.findFirst({
-    where: eq(jobInfoTable.id, id),
+    where: and(eq(jobInfoTable.id, id), eq(jobInfoTable.userId, userId)),
   });
 }

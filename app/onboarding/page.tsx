@@ -13,7 +13,7 @@ export default async function OnboardingPage() {
   return (
     <div className="container flex flex-col items-center justify-center h-screen gap-4">
       <h1 className="text-4xl">Creating your account</h1>
-      <OnBoardingClient userId={userId} />
+      <OnBoardingClient />
     </div>
   );
 }

@@ -26,6 +26,10 @@ import { cacheTag } from "next/cache";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 
+// Feedback generation runs a long-context Gemini call from this segment. The
+// AI service aborts itself at 100s, comfortably inside this budget.
+export const maxDuration = 120;
+
 export default async function InterviewPage({
   params,
 }: {
@@ -112,7 +116,20 @@ async function Messages({
   if (user == null) return redirectToSignIn();
 
   const { humeChatId } = await interview;
-  if (humeChatId == null) return notFound();
+  // A null humeChatId means the chat-id write never landed. That is a real
+  // state a user can reach after a dropped connection, and a bare 404 gave
+  // them no idea what happened to the call they just paid for.
+  if (humeChatId == null) {
+    return (
+      <div className="text-center text-muted-foreground max-w-prose mx-auto space-y-2">
+        <p>
+          This interview never finished connecting, so there is no transcript to
+          show.
+        </p>
+        <p>You have not been charged for it. Start a new interview to retry.</p>
+      </div>
+    );
+  }
 
   const condensedMessages = condenseChatMessages(
     await fetchChatMessages(humeChatId),
