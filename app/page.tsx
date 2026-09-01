@@ -34,11 +34,14 @@ export default function HomePage() {
         <div className="flex items-center gap-2">
           <ThemeToggle />
           <SignedOut>
-            <Button asChild>
-              {/* /onboarding waits for the Clerk webhook to create the users
-                  row before forwarding to /app. */}
-              <SignInButton forceRedirectUrl="/onboarding" />
-            </Button>
+            {/* SignInButton wraps a single child - it does NOT go inside
+                <Button asChild>. Inverting these throws "You've passed
+                multiple children components to <SignInButton/>" at render.
+                /onboarding waits for the Clerk webhook to create the users
+                row before forwarding to /app. */}
+            <SignInButton forceRedirectUrl="/onboarding">
+              <Button>Sign in</Button>
+            </SignInButton>
           </SignedOut>
           <SignedIn>
             <Button asChild>
@@ -60,11 +63,9 @@ export default function HomePage() {
           </p>
           <div className="mt-10 flex items-center justify-center gap-3">
             <SignedOut>
-              <Button size="lg" asChild>
-                <SignInButton forceRedirectUrl="/onboarding">
-                  Start practising free
-                </SignInButton>
-              </Button>
+              <SignInButton forceRedirectUrl="/onboarding">
+                <Button size="lg">Start practising free</Button>
+              </SignInButton>
             </SignedOut>
             <SignedIn>
               <Button size="lg" asChild>
