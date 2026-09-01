@@ -26,57 +26,67 @@ const steps = [
 export default function HomePage() {
   return (
     <div className="flex min-h-screen flex-col">
-      <header className="h-header flex items-center justify-between px-4 border-b">
-        <div className="flex items-center gap-2">
-          <BrainCircuit className="size-6 text-primary" />
-          <span className="text-lg font-semibold">Land</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <ThemeToggle />
-          <SignedOut>
-            {/* SignInButton wraps a single child - it does NOT go inside
-                <Button asChild>. Inverting these throws "You've passed
-                multiple children components to <SignInButton/>" at render.
-                /onboarding waits for the Clerk webhook to create the users
-                row before forwarding to /app. */}
-            <SignInButton forceRedirectUrl="/onboarding">
-              <Button>Sign in</Button>
-            </SignInButton>
-          </SignedOut>
-          <SignedIn>
-            <Button asChild>
-              <Link href="/app">Go to dashboard</Link>
-            </Button>
-            <UserButton />
-          </SignedIn>
+      {/* The border spans the full viewport; the CONTENT is constrained to the
+          same `container` as every section below, so the logo lines up with the
+          hero and the footer. `container` already supplies margin-inline: auto
+          and padding-inline: 2rem - adding mx-auto/px-4 on top fights it. */}
+      <header className="h-header border-b">
+        <div className="container h-full flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <BrainCircuit className="size-6 text-primary" />
+            <span className="text-lg font-semibold">Land</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <ThemeToggle />
+            <SignedOut>
+              {/* SignInButton wraps a single child - it does NOT go inside
+                  <Button asChild>. Inverting these throws "You've passed
+                  multiple children components to <SignInButton/>" at render.
+                  /onboarding waits for the Clerk webhook to create the users
+                  row before forwarding to /app. */}
+              <SignInButton forceRedirectUrl="/onboarding">
+                <Button>Sign in</Button>
+              </SignInButton>
+            </SignedOut>
+            <SignedIn>
+              <Button asChild>
+                <Link href="/app">Go to dashboard</Link>
+              </Button>
+              <UserButton />
+            </SignedIn>
+          </div>
         </div>
       </header>
 
       <main className="flex-1">
-        <section className="container mx-auto px-4 py-20 md:py-28 text-center max-w-3xl">
-          <h1 className="text-4xl md:text-6xl font-semibold tracking-tight text-balance">
-            Practise the interview before it counts
-          </h1>
-          <p className="mt-6 text-lg text-muted-foreground text-balance">
-            Land runs a live voice mock interview against the exact job
-            you&apos;re chasing, then tells you — specifically — what to fix.
-          </p>
-          <div className="mt-10 flex items-center justify-center gap-3">
-            <SignedOut>
-              <SignInButton forceRedirectUrl="/onboarding">
-                <Button size="lg">Start practising free</Button>
-              </SignInButton>
-            </SignedOut>
-            <SignedIn>
-              <Button size="lg" asChild>
-                <Link href="/app">Go to your dashboard</Link>
-              </Button>
-            </SignedIn>
+        {/* max-w-3xl goes on an inner div, not the section - putting it on the
+            container would override its max-width and change the gutter. */}
+        <section className="container py-20 md:py-28">
+          <div className="max-w-3xl mx-auto text-center">
+            <h1 className="text-4xl md:text-6xl font-semibold tracking-tight text-balance">
+              Practise the interview before it counts
+            </h1>
+            <p className="mt-6 text-lg text-muted-foreground text-balance">
+              Land runs a live voice mock interview against the exact job
+              you&apos;re chasing, then tells you — specifically — what to fix.
+            </p>
+            <div className="mt-10 flex items-center justify-center gap-3">
+              <SignedOut>
+                <SignInButton forceRedirectUrl="/onboarding">
+                  <Button size="lg">Start practising free</Button>
+                </SignInButton>
+              </SignedOut>
+              <SignedIn>
+                <Button size="lg" asChild>
+                  <Link href="/app">Go to your dashboard</Link>
+                </Button>
+              </SignedIn>
+            </div>
           </div>
         </section>
 
         <section className="border-t bg-muted/30">
-          <div className="container mx-auto px-4 py-16 md:py-20">
+          <div className="container py-16 md:py-20">
             <h2 className="text-2xl md:text-3xl text-center mb-12">
               How it works
             </h2>
@@ -100,7 +110,7 @@ export default function HomePage() {
         </section>
 
         <section className="border-t">
-          <div className="container mx-auto px-4 py-16 md:py-20">
+          <div className="container py-16 md:py-20">
             <h2 className="text-2xl md:text-3xl text-center mb-4">
               Pricing
             </h2>
@@ -113,7 +123,7 @@ export default function HomePage() {
       </main>
 
       <footer className="border-t">
-        <div className="container mx-auto px-4 py-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-muted-foreground">
+        <div className="container py-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-muted-foreground">
           <div className="flex items-center gap-2">
             <BrainCircuit className="size-4" />
             <span>Land — AI Powered Job Prep</span>
