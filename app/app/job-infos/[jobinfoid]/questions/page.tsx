@@ -76,6 +76,9 @@ async function SuspendedPage({ jobInfoId }: { jobInfoId: string }) {
           id: q.id,
           text: q.text,
           difficulty: q.difficulty,
+          answer: q.answer,
+          feedback: q.feedback,
+          rating: q.rating,
         }))}
         canGenerate={canGenerate}
       />

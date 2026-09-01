@@ -19,7 +19,16 @@ import { Textarea } from "@/components/ui/textarea";
 import { errorToast } from "@/lib/errorToast";
 import { useState, useTransition } from "react";
 
-type Question = { id: string; text: string; difficulty: QuestionDifficulty };
+export type PracticeQuestion = {
+  id: string;
+  text: string;
+  difficulty: QuestionDifficulty;
+  // Null until answered. Persisted, so returning to a question shows what you
+  // said last time and how it scored, rather than a blank box.
+  answer: string | null;
+  feedback: string | null;
+  rating: number | null;
+};
 
 export function QuestionsClient({
   jobInfoId,
@@ -27,18 +36,23 @@ export function QuestionsClient({
   canGenerate,
 }: {
   jobInfoId: string;
-  initialQuestions: Question[];
+  initialQuestions: PracticeQuestion[];
   canGenerate: boolean;
 }) {
   const [questions, setQuestions] = useState(initialQuestions);
-  const [active, setActive] = useState<Question | null>(
-    initialQuestions.at(-1) ?? null,
+  const [activeId, setActiveId] = useState<string | null>(
+    initialQuestions.at(-1)?.id ?? null,
   );
   const [difficulty, setDifficulty] = useState<QuestionDifficulty>("mid-level");
-  const [answer, setAnswer] = useState("");
-  const [feedback, setFeedback] = useState<string | null>(null);
+  const [draft, setDraft] = useState("");
   const [generating, startGenerating] = useTransition();
   const [reviewing, startReviewing] = useTransition();
+
+  const active = questions.find((q) => q.id === activeId) ?? null;
+  // An answered question shows its stored answer; an unanswered one shows the
+  // in-progress draft.
+  const answerValue = active?.answer ?? draft;
+  const isAnswered = active?.answer != null;
 
   function generate() {
     startGenerating(async () => {
@@ -46,11 +60,17 @@ export function QuestionsClient({
         const res = await createQuestion({ jobInfoId, difficulty });
         if (res.error) return errorToast(res.message);
 
-        const question = { id: res.id, text: res.text, difficulty };
+        const question: PracticeQuestion = {
+          id: res.id,
+          text: res.text,
+          difficulty,
+          answer: null,
+          feedback: null,
+          rating: null,
+        };
         setQuestions((prev) => [...prev, question]);
-        setActive(question);
-        setAnswer("");
-        setFeedback(null);
+        setActiveId(question.id);
+        setDraft("");
       } catch (error) {
         console.error("[questions] generation threw", error);
         errorToast("Something went wrong. Please try again.");
@@ -59,12 +79,22 @@ export function QuestionsClient({
   }
 
   function review() {
-    if (active == null) return;
+    if (active == null || isAnswered) return;
     startReviewing(async () => {
       try {
-        const res = await reviewAnswer({ questionId: active.id, answer });
+        const res = await reviewAnswer({ questionId: active.id, answer: draft });
         if (res.error) return errorToast(res.message);
-        setFeedback(res.feedback);
+
+        // Fold the result into the list so it survives navigating away and
+        // back - the server has persisted the same thing.
+        setQuestions((prev) =>
+          prev.map((q) =>
+            q.id === active.id
+              ? { ...q, answer: draft, feedback: res.feedback, rating: res.rating }
+              : q,
+          ),
+        );
+        setDraft("");
       } catch (error) {
         console.error("[questions] review threw", error);
         errorToast("Something went wrong. Please try again.");
@@ -113,18 +143,26 @@ export function QuestionsClient({
               <li key={question.id}>
                 <button
                   onClick={() => {
-                    setActive(question);
-                    setAnswer("");
-                    setFeedback(null);
+                    setActiveId(question.id);
+                    setDraft("");
                   }}
                   className={`w-full text-left text-sm rounded border px-3 py-2 transition-colors hover:bg-muted ${
-                    active?.id === question.id ? "border-primary" : ""
+                    activeId === question.id ? "border-primary" : ""
                   }`}
                 >
-                  <span className="text-muted-foreground tabular-nums mr-2">
-                    {index + 1}.
+                  <span className="flex items-start justify-between gap-2">
+                    <span className="line-clamp-2">
+                      <span className="text-muted-foreground tabular-nums mr-2">
+                        {index + 1}.
+                      </span>
+                      {question.text}
+                    </span>
+                    {question.rating != null && (
+                      <span className="text-xs text-muted-foreground tabular-nums shrink-0">
+                        {question.rating}/10
+                      </span>
+                    )}
                   </span>
-                  <span className="line-clamp-2">{question.text}</span>
                 </button>
               </li>
             ))}
@@ -143,29 +181,45 @@ export function QuestionsClient({
           <>
             <Card>
               <CardContent className="space-y-3">
-                <Badge variant="outline">{active.difficulty}</Badge>
+                <div className="flex items-center justify-between gap-2">
+                  <Badge variant="outline">{active.difficulty}</Badge>
+                  {active.rating != null && (
+                    <span className="text-sm text-muted-foreground tabular-nums">
+                      Scored {active.rating}/10
+                    </span>
+                  )}
+                </div>
                 <p className="text-lg">{active.text}</p>
               </CardContent>
             </Card>
 
             <Textarea
-              value={answer}
-              onChange={(e) => setAnswer(e.target.value)}
+              value={answerValue}
+              onChange={(e) => setDraft(e.target.value)}
+              readOnly={isAnswered}
               placeholder="Answer out loud first, then type the gist of what you said."
               className="min-h-[160px]"
             />
 
-            <Button
-              onClick={review}
-              disabled={reviewing || answer.trim().length === 0}
-            >
-              <LoadingSwap isLoading={reviewing}>Review my answer</LoadingSwap>
-            </Button>
+            {isAnswered ? (
+              <p className="text-sm text-muted-foreground">
+                Answered. Generate a new question to keep practising.
+              </p>
+            ) : (
+              <Button
+                onClick={review}
+                disabled={reviewing || draft.trim().length === 0}
+              >
+                <LoadingSwap isLoading={reviewing}>
+                  Review my answer
+                </LoadingSwap>
+              </Button>
+            )}
 
-            {feedback && (
+            {active.feedback && (
               <Card>
                 <CardContent>
-                  <MarkdownRenderer>{feedback}</MarkdownRenderer>
+                  <MarkdownRenderer>{active.feedback}</MarkdownRenderer>
                 </CardContent>
               </Card>
             )}

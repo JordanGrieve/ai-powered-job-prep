@@ -1,10 +1,9 @@
 import { jobInfoTable } from "@/app/drizzle/schema";
-import { generateText } from "ai";
-import { google } from "./models/google";
-import { env } from "@/app/data/env/server";
-import { createLogger } from "@/lib/logger";
-
-const log = createLogger("gemini");
+import {
+  generateRatedFeedback,
+  type AiResult,
+  type RatedFeedback,
+} from "./ratedFeedback";
 
 const GENERATION_TIMEOUT_MS = 90_000;
 const MAX_OUTPUT_TOKENS = 3072;
@@ -49,10 +48,6 @@ Rules:
 - Never invent experience the candidate does not claim.
 - Be direct. Vague encouragement is not useful to someone applying for a job.`;
 
-type Result =
-  | { error: true; message: string }
-  | { error: false; text: string };
-
 export async function generateAiResumeAnalysis({
   jobInfo,
   file,
@@ -62,71 +57,36 @@ export async function generateAiResumeAnalysis({
     "title" | "description" | "experienceLevel"
   >;
   file: { data: Uint8Array; mediaType: string };
-}): Promise<Result> {
-  try {
-    const { text, finishReason } = await generateText({
-      model: google(env.GEMINI_MODEL),
-      system: SYSTEM_PROMPT,
-      maxOutputTokens: MAX_OUTPUT_TOKENS,
-      abortSignal: AbortSignal.timeout(GENERATION_TIMEOUT_MS),
-      messages: [
-        {
-          role: "user",
-          content: [
-            {
-              type: "text",
-              text: `<job_context>
+}): Promise<AiResult<RatedFeedback>> {
+  // Shared helper handles error classification, the empty/truncated check and
+  // token-usage logging. The file part rides along in the same user message as
+  // the fenced job context.
+  return generateRatedFeedback({
+    system: SYSTEM_PROMPT,
+    messages: [
+      {
+        role: "user",
+        content: [
+          {
+            type: "text",
+            text: `<job_context>
 Job title: ${jobInfo.title ?? "Untitled Job Info"}
 Job description: ${jobInfo.description}
 Job experience level: ${jobInfo.experienceLevel}
 </job_context>
 
 The attached file is the candidate's resume.`,
-            },
-            {
-              type: "file",
-              data: file.data,
-              mediaType: file.mediaType,
-            },
-          ],
-        },
-      ],
-    });
-
-    if (text.trim().length === 0 || finishReason !== "stop") {
-      log.error("unusable resume analysis", undefined, {
-        model: env.GEMINI_MODEL,
-        finishReason,
-        length: text.length,
-      });
-      return {
-        error: true,
-        message:
-          "The analysis came back incomplete. Please try again.",
-      };
-    }
-
-    return { error: false, text };
-  } catch (error) {
-    log.error("resume analysis failed", error, { model: env.GEMINI_MODEL });
-
-    const message = error instanceof Error ? error.message : String(error);
-    if (error instanceof Error && error.name === "TimeoutError") {
-      return {
-        error: true,
-        message: "Analysing the resume took too long. Please try again.",
-      };
-    }
-    if (/quota|rate.?limit|429/i.test(message)) {
-      return {
-        error: true,
-        message: "The analysis service is busy right now. Please try shortly.",
-      };
-    }
-
-    return {
-      error: true,
-      message: "Failed to analyse the resume. Please try again.",
-    };
-  }
+          },
+          {
+            type: "file",
+            data: file.data,
+            mediaType: file.mediaType,
+          },
+        ],
+      },
+    ],
+    maxOutputTokens: MAX_OUTPUT_TOKENS,
+    timeoutMs: GENERATION_TIMEOUT_MS,
+    boundary: "resume-analysis",
+  });
 }
