@@ -17,6 +17,7 @@ import { db } from "./db";
 import { InterviewTable } from "./schema/interview";
 import { jobInfoTable } from "./schema/jobInfo";
 import { QuestionTable } from "./schema/question";
+import { ResumeAnalysisTable } from "./schema/resumeAnalysis";
 import { UserTable } from "./schema/user";
 
 const SEED_MARKER = "[seed]";
@@ -129,21 +130,68 @@ async function main() {
 
   const [frontend, backend] = jobInfos;
 
+  // Ratings ascend deliberately so the progress trend has something real to
+  // report - computeTrend needs at least 4 points before it will say anything.
+  const daysAgo = (n: number) => new Date(Date.now() - n * 86_400_000);
+
   await db.insert(QuestionTable).values([
     {
       jobId: frontend.id,
       text: "Walk me through how you would audit and improve the Largest Contentful Paint on a checkout page.",
       difficulty: "senior",
+      answer:
+        "I would start with a Lighthouse trace and look at what the LCP element actually is.",
+      feedback:
+        "A reasonable starting point, but you stopped before the trade-offs. Name what you would measure next.",
+      rating: 4,
+      answeredAt: daysAgo(9),
     },
     {
       jobId: frontend.id,
       text: "How do you decide whether a component belongs in the design system?",
       difficulty: "mid-level",
+      answer:
+        "If it is used in three or more places and carries no domain logic.",
+      feedback: "Good rule of thumb, well scoped. You named the constraint.",
+      rating: 7,
+      answeredAt: daysAgo(6),
     },
     {
+      jobId: frontend.id,
+      text: "How would you approach making a large data table accessible?",
+      difficulty: "mid-level",
+      answer:
+        "Semantic table markup first, then a caption, scope attributes, and a live region for sort changes.",
+      feedback:
+        "Strong. You led with semantics rather than reaching for ARIA, which is the right instinct.",
+      rating: 8,
+      answeredAt: daysAgo(3),
+    },
+    {
+      // Generated but never answered - the normal resting state, and what the
+      // progress query must exclude.
       jobId: backend.id,
       text: "Describe how you would make a queue consumer idempotent.",
       difficulty: "mid-level",
+    },
+  ]);
+
+  await db.insert(ResumeAnalysisTable).values([
+    {
+      jobInfoId: frontend.id,
+      fileName: "cv-draft-1.pdf",
+      rating: 5,
+      feedback:
+        "## Overall\n\nThe experience is there, but the bullets describe duties rather than outcomes.",
+      createdAt: daysAgo(8),
+    },
+    {
+      jobInfoId: frontend.id,
+      fileName: "cv-draft-2.pdf",
+      rating: 8,
+      feedback:
+        "## Overall\n\nMuch stronger. The rewritten bullets lead with measurable impact.",
+      createdAt: daysAgo(1),
     },
   ]);
 
@@ -155,6 +203,7 @@ async function main() {
       duration: "00:18:42",
       humeChatId: "11111111-1111-4111-8111-111111111111",
       feedback: LONG_FEEDBACK,
+      rating: 7,
     },
     {
       // Completed, no feedback yet - shows the Generate Feedback button.
@@ -174,7 +223,7 @@ async function main() {
   ]);
 
   console.log(
-    `Seeded ${jobInfos.length} job infos, 3 questions and 3 interviews for ${clerkUserId}.`,
+    `Seeded ${jobInfos.length} job infos, 4 questions (3 answered + rated), 2 resume analyses and 3 interviews for ${clerkUserId}.`,
   );
   console.log(
     "Note: the two humeChatIds are fake, so the transcript view will fail " +

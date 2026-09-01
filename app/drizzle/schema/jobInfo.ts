@@ -4,6 +4,7 @@ import { relations } from "drizzle-orm";
 import { UserTable } from "./user";
 import { QuestionTable } from "./question";
 import { InterviewTable } from "./interview";
+import { ResumeAnalysisTable } from "./resumeAnalysis";
 
 export const experienceLevel = ["junior", "mid-level", "senior"] as const;
 
@@ -41,4 +42,7 @@ export const JobInfoRelations = relations(jobInfoTable, ({ one, many }) => ({
   }),
   questions: many(QuestionTable, { relationName: "jobInfo_questions" }),
   interviews: many(InterviewTable, { relationName: "jobInfo_interviews" }),
+  resumeAnalyses: many(ResumeAnalysisTable, {
+    relationName: "jobInfo_resumeAnalyses",
+  }),
 }));

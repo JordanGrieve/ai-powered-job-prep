@@ -211,7 +211,10 @@ export async function generateInterviewFeedback(interviewId: string) {
   }
 
   const updated = await updateInterviewDb(interviewId, {
-    feedback: feedback.text,
+    feedback: feedback.feedback,
+    // Persisted so this interview appears on the progress trajectory alongside
+    // practice questions and resume analyses.
+    rating: feedback.rating,
   });
   if (updated == null) {
     return { error: true as const, message: "Interview not found" };

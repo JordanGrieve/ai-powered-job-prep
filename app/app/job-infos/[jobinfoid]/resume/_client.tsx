@@ -11,7 +11,10 @@ import { errorToast } from "@/lib/errorToast";
 import { useRef, useState, useTransition } from "react";
 
 export function ResumeClient({ jobInfoId }: { jobInfoId: string }) {
-  const [analysis, setAnalysis] = useState<string | null>(null);
+  const [analysis, setAnalysis] = useState<{
+    rating: number;
+    feedback: string;
+  } | null>(null);
   const [fileName, setFileName] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const formRef = useRef<HTMLFormElement>(null);
@@ -24,7 +27,7 @@ export function ResumeClient({ jobInfoId }: { jobInfoId: string }) {
       try {
         const res = await analyzeResume(formData);
         if (res.error) return errorToast(res.message);
-        setAnalysis(res.text);
+        setAnalysis({ rating: res.rating, feedback: res.feedback });
       } catch (error) {
         console.error("[resume] analysis threw", error);
         errorToast("Something went wrong. Please try again.");
@@ -63,8 +66,14 @@ export function ResumeClient({ jobInfoId }: { jobInfoId: string }) {
 
       {analysis && (
         <Card>
-          <CardContent>
-            <MarkdownRenderer>{analysis}</MarkdownRenderer>
+          <CardContent className="space-y-4">
+            <div className="flex items-baseline gap-2">
+              <span className="text-3xl font-semibold tabular-nums">
+                {analysis.rating}
+              </span>
+              <span className="text-muted-foreground">/ 10 overall</span>
+            </div>
+            <MarkdownRenderer>{analysis.feedback}</MarkdownRenderer>
           </CardContent>
         </Card>
       )}

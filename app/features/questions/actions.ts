@@ -9,12 +9,12 @@ import { and, asc, eq } from "drizzle-orm";
 import { cacheTag } from "next/cache";
 import { getJobInfoIdTag } from "../jobInfos/dbCache";
 import { getQuestionJobInfoTag } from "./dbCache";
-import { insertQuestion } from "./db";
+import { insertQuestion, updateQuestion } from "./db";
 import { canCreateQuestion } from "./permissions";
 import { PLAN_LIMIT_MESSAGE, RATE_LIMIT_MESSAGE } from "@/lib/errorToast";
 import {
-  generateAiAnswerFeedback,
   generateAiQuestion,
+  generateRatedAnswerFeedback,
 } from "@/app/services/ai/questions";
 import arcjet, { request, tokenBucket } from "@arcjet/next";
 import { env } from "@/app/data/env/server";
@@ -95,7 +95,8 @@ export async function reviewAnswer({
   questionId: string;
   answer: string;
 }): Promise<
-  { error: true; message: string } | { error: false; feedback: string }
+  | { error: true; message: string }
+  | { error: false; feedback: string; rating: number }
 > {
   const { userId } = await getCurrentUser();
   if (userId == null) return PERMISSION_ERROR;
@@ -115,14 +116,27 @@ export async function reviewAnswer({
     return { error: true, message: RATE_LIMIT_MESSAGE };
   }
 
-  const generated = await generateAiAnswerFeedback({
+  const generated = await generateRatedAnswerFeedback({
     jobInfo: question.jobInfo,
     question: question.text,
     answer: parsedAnswer.data,
   });
   if (generated.error) return { error: true, message: generated.message };
 
-  return { error: false, feedback: generated.text };
+  // Persist the attempt. Previously the answer and its feedback were shown
+  // once and thrown away, so there was no practice history and nothing to
+  // chart. answeredAt is what the progress query orders on.
+  const saved = await updateQuestion(parsedId.data, {
+    answer: parsedAnswer.data,
+    feedback: generated.feedback,
+    rating: generated.rating,
+    answeredAt: new Date(),
+  });
+  if (saved == null) {
+    return { error: true, message: "Question not found" };
+  }
+
+  return { error: false, feedback: generated.feedback, rating: generated.rating };
 }
 
 async function getJobInfo(id: string, userId: string) {

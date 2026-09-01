@@ -1,9 +1,11 @@
 import { jobInfoTable } from "@/app/drizzle/schema";
 import { fetchChatMessages } from "../hume/lib/api";
-import { generateText } from "ai";
-import { google } from "./models/google";
-import { env } from "@/app/data/env/server";
 import { createLogger } from "@/lib/logger";
+import {
+  generateRatedFeedback,
+  type AiResult,
+  type RatedFeedback,
+} from "./ratedFeedback";
 
 // Sized to sit comfortably under the route's maxDuration so a hung provider
 // call is aborted by us rather than killed by the platform.
@@ -13,10 +15,6 @@ const GENERATION_TIMEOUT_MS = 100_000;
 const MAX_OUTPUT_TOKENS = 4096;
 
 const log = createLogger("gemini");
-
-type FeedbackResult =
-  | { error: true; message: string }
-  | { error: false; text: string };
 
 const SYSTEM_PROMPT = `You are an expert interview coach and evaluator. Your role is to analyze a mock job interview transcript and provide clear, detailed, and structured feedback on the interviewee's performance based on the job requirements. Your output should be in markdown format.
 
@@ -82,7 +80,7 @@ Additional Notes:
 - Be clear, constructive, and actionable. The goal is to help the interviewee grow.
 - Do not include an h1 title or information about the job description in your response, just include the feedback.
 - Refer to the interviewee as "you" in your feedback. This feedback should be written as if you were speaking directly to the interviewee.
-- Include a number rating (out of 10) in the heading for each category (e.g., "Communication Clarity: 8/10") as well as an overall rating at the very start of the response.
+- Include a number rating (out of 10) in the heading for each category (e.g., "Communication Clarity: 8/10"). Do NOT put an overall rating in the markdown - set the separate rating field to an honest overall 1-10 instead.
 - Stop generating output as soon as you have provided the full feedback.
 `;
 
@@ -97,7 +95,7 @@ export async function generateAiInterviewFeedback({
     "title" | "description" | "experienceLevel"
   >;
   userName: string;
-}): Promise<FeedbackResult> {
+}): Promise<AiResult<RatedFeedback>> {
   let messages;
   try {
     messages = await fetchChatMessages(humeChatId);
@@ -148,57 +146,16 @@ Job experience level: ${jobInfo.experienceLevel}
 ${JSON.stringify(formattedMessages)}
 </transcript>`;
 
-  try {
-    const { text, finishReason } = await generateText({
-      model: google(env.GEMINI_MODEL),
-      system: SYSTEM_PROMPT,
-      prompt: userMessage,
-      maxOutputTokens: MAX_OUTPUT_TOKENS,
-      abortSignal: AbortSignal.timeout(GENERATION_TIMEOUT_MS),
-    });
-
-    // generateText always resolves `text` to a string, so the old
-    // `if (feedback == null)` check was dead code and truncated or empty
-    // output was written to the database with no way to regenerate it.
-    if (text.trim().length === 0 || finishReason !== "stop") {
-      log.error("unusable generation", undefined, {
-        humeChatId,
-        model: env.GEMINI_MODEL,
-        finishReason,
-        length: text.length,
-      });
-      return {
-        error: true,
-        message:
-          "The feedback came back incomplete. Please try generating it again.",
-      };
-    }
-
-    return { error: false, text };
-  } catch (error) {
-    log.error("generation failed", error, {
-      humeChatId,
-      model: env.GEMINI_MODEL,
-    });
-
-    const message = error instanceof Error ? error.message : String(error);
-    if (error instanceof Error && error.name === "TimeoutError") {
-      return {
-        error: true,
-        message: "Generating feedback took too long. Please try again.",
-      };
-    }
-    if (/quota|rate.?limit|429/i.test(message)) {
-      return {
-        error: true,
-        message:
-          "The feedback service is busy right now. Please try again shortly.",
-      };
-    }
-
-    return {
-      error: true,
-      message: "Failed to generate feedback. Please try again.",
-    };
-  }
+  // Error handling, the finishReason/empty-output check, timeout and quota
+  // classification, and token-usage logging all live in generateRatedFeedback
+  // now - shared with the question and resume generators so all three behave
+  // identically.
+  return generateRatedFeedback({
+    system: SYSTEM_PROMPT,
+    messages: [{ role: "user", content: userMessage }],
+    maxOutputTokens: MAX_OUTPUT_TOKENS,
+    timeoutMs: GENERATION_TIMEOUT_MS,
+    boundary: "interview-feedback",
+    context: { humeChatId },
+  });
 }

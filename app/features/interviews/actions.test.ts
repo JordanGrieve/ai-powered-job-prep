@@ -371,14 +371,18 @@ describe("generateInterviewFeedback", () => {
     );
     vi.mocked(generateAiInterviewFeedback).mockResolvedValue({
       error: false,
-      text: "## Overall: 7/10",
+      rating: 7,
+      feedback: "## Communication Clarity: 8/10",
     });
 
     const res = await generateInterviewFeedback(INTERVIEW_ID);
 
     expect(res).toEqual({ error: false });
+    // The rating is persisted alongside the markdown - it is what the progress
+    // trajectory is charted from.
     expect(updateInterviewDb).toHaveBeenCalledWith(INTERVIEW_ID, {
-      feedback: "## Overall: 7/10",
+      feedback: "## Communication Clarity: 8/10",
+      rating: 7,
     });
   });
 });

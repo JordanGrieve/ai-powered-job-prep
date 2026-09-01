@@ -3,10 +3,13 @@
 import { getCurrentUser } from "@/app/services/clerk/lib/getCurrentUser";
 import { db } from "@/app/drizzle/db";
 import { jobInfoTable } from "@/app/drizzle/schema/jobInfo";
-import { and, eq } from "drizzle-orm";
+import { ResumeAnalysisTable } from "@/app/drizzle/schema";
+import { and, desc, eq } from "drizzle-orm";
 import { cacheTag } from "next/cache";
 import { getJobInfoIdTag } from "../jobInfos/dbCache";
 import { canRunResumeAnalysis } from "./permissions";
+import { insertResumeAnalysis } from "./db";
+import { getResumeAnalysisJobInfoTag } from "./dbCache";
 import { PLAN_LIMIT_MESSAGE, RATE_LIMIT_MESSAGE } from "@/lib/errorToast";
 import {
   ACCEPTED_RESUME_TYPES,
@@ -31,7 +34,10 @@ const uuidSchema = z.string().uuid();
 
 export async function analyzeResume(
   formData: FormData,
-): Promise<{ error: true; message: string } | { error: false; text: string }> {
+): Promise<
+  | { error: true; message: string }
+  | { error: false; id: string; rating: number; feedback: string }
+> {
   const { userId } = await getCurrentUser();
   if (userId == null) {
     return { error: true, message: "You don't have permission to do this" };
@@ -86,7 +92,33 @@ export async function analyzeResume(
   });
 
   if (result.error) return { error: true, message: result.message };
-  return { error: false, text: result.text };
+
+  // Persist the RESULT only - the uploaded file is never written anywhere.
+  // That gives the candidate a re-readable history and a rating they can watch
+  // improve across drafts, without holding anyone's CV at rest.
+  const saved = await insertResumeAnalysis({
+    jobInfoId: parsedId.data,
+    fileName: file.name.slice(0, 255),
+    rating: result.rating,
+    feedback: result.feedback,
+  });
+
+  return {
+    error: false,
+    id: saved.id,
+    rating: result.rating,
+    feedback: result.feedback,
+  };
+}
+
+export async function getResumeAnalyses(jobInfoId: string) {
+  "use cache";
+  cacheTag(getResumeAnalysisJobInfoTag(jobInfoId));
+
+  return db.query.ResumeAnalysisTable.findMany({
+    where: eq(ResumeAnalysisTable.jobInfoId, jobInfoId),
+    orderBy: desc(ResumeAnalysisTable.createdAt),
+  });
 }
 
 async function getJobInfo(id: string, userId: string) {
