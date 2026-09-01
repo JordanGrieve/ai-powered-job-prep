@@ -14,7 +14,7 @@ export const metadata = { title: "Billing" };
 
 export default function BillingPage() {
   return (
-    <div className="container mx-auto py-4 max-w-6xl space-y-4">
+    <div className="container py-4 max-w-6xl space-y-4">
       <BackLink href="/app">Dashboard</BackLink>
       <Suspense
         fallback={<Loader2 className="animate-spin size-24 mx-auto my-24" />}
