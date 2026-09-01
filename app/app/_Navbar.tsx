@@ -47,76 +47,83 @@ export function Navbar({ userPromise }: { userPromise: Promise<NavUser> }) {
   const pathName = usePathname();
 
   return (
-    <nav className="h-header flex items-center justify-between px-4 border-b">
-      <Link href="/app" className="flex items-center gap-2">
-        <BrainCircuit className="size-6 text-primary" />
-        <span className="text-lg font-semibold">Land</span>
-      </Link>
+    // The border spans the full viewport; the CONTENT sits in the same
+    // `container` every /app page uses, so the logo lines up with the page
+    // heading beneath it instead of sitting 16px from the edge.
+    <nav className="h-header border-b">
+      <div className="container h-full flex items-center justify-between">
+        <Link href="/app" className="flex items-center gap-2">
+          <BrainCircuit className="size-6 text-primary" />
+          <span className="text-lg font-semibold">Land</span>
+        </Link>
 
-      <div className="flex items-center gap-2">
-        {typeof jobinfoid === "string" &&
-          navLinks.map(({ name, href, Icon, ready }) => {
-            const hrefPath = `/app/job-infos/${jobinfoid}/${href}`;
-            const isActive = pathName === hrefPath;
+        <div className="flex items-center gap-2">
+          {typeof jobinfoid === "string" &&
+            navLinks.map(({ name, href, Icon, ready }) => {
+              const hrefPath = `/app/job-infos/${jobinfoid}/${href}`;
+              const isActive = pathName === hrefPath;
 
-            if (!ready) {
+              if (!ready) {
+                return (
+                  <Button
+                    variant="ghost"
+                    key={name}
+                    disabled
+                    title={`${name} is coming soon`}
+                    className="max-sm:hidden"
+                  >
+                    <Icon />
+                    {name}
+                  </Button>
+                );
+              }
+
               return (
                 <Button
-                  variant="ghost"
+                  variant={isActive ? "secondary" : "ghost"}
                   key={name}
-                  disabled
-                  title={`${name} is coming soon`}
-                  className="max-sm:hidden"
+                  asChild
+                  className="cursor-pointer max-sm:hidden"
                 >
-                  <Icon />
-                  {name}
+                  <Link
+                    href={hrefPath}
+                    className={`flex items-center gap-2 ${
+                      isActive ? "text-primary" : "text-muted"
+                    }`}
+                  >
+                    <Icon />
+                    {name}
+                  </Link>
                 </Button>
               );
-            }
+            })}
 
-            return (
-              <Button
-                variant={isActive ? "secondary" : "ghost"}
-                key={name}
-                asChild
-                className="cursor-pointer max-sm:hidden"
+          <ThemeToggle />
+          <DropdownMenu>
+            <DropdownMenuTrigger>
+              <Suspense
+                fallback={
+                  <div className="size-8 rounded-full bg-muted animate-pulse" />
+                }
               >
-                <Link
-                  href={hrefPath}
-                  className={`flex items-center gap-2 ${
-                    isActive ? "text-primary" : "text-muted"
-                  }`}
-                >
-                  <Icon />
-                  {name}
-                </Link>
-              </Button>
-            );
-          })}
-
-        <ThemeToggle />
-        <DropdownMenu>
-          <DropdownMenuTrigger>
-            <Suspense
-              fallback={<div className="size-8 rounded-full bg-muted animate-pulse" />}
-            >
-              <NavAvatar userPromise={userPromise} />
-            </Suspense>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={() => openUserProfile()}>
-              <User />
-              Profile
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              variant="destructive"
-              onClick={() => signOut({ redirectUrl: "/" })}
-            >
-              <LogOut />
-              Logout
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+                <NavAvatar userPromise={userPromise} />
+              </Suspense>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => openUserProfile()}>
+                <User />
+                Profile
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                variant="destructive"
+                onClick={() => signOut({ redirectUrl: "/" })}
+              >
+                <LogOut />
+                Logout
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </div>
     </nav>
   );

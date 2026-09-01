@@ -8,7 +8,7 @@ export default async function UpgradePage() {
   const blocked = !(await canCreateInterview());
 
   return (
-    <div className="container mx-auto py-4 max-w-6xl">
+    <div className="container py-4 max-w-6xl">
       <div className="mb-4">
         <BackLink href="/app">Dashboard</BackLink>
       </div>
