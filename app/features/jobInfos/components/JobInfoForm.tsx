@@ -67,7 +67,7 @@ export function JobInfoForm({
     <Form {...form}>
       <form
         onSubmit={form.handleSubmit(onSubmit)}
-        className="space-y-6 w-full md:w-3xl"
+        className="space-y-6 w-full"
       >
         <FormField
           control={form.control}
