@@ -1,8 +1,14 @@
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Button } from "@/components/ui/button";
 import { Show, SignInButton, UserButton } from "@clerk/nextjs";
-import { BrainCircuit, FileSlidersIcon, MicIcon, SpeechIcon } from "lucide-react";
+import {
+  BrainCircuit,
+  FileSlidersIcon,
+  MicIcon,
+  SpeechIcon,
+} from "lucide-react";
 import Link from "next/link";
+import { Suspense } from "react";
 import { PricingTable } from "./services/clerk/components/PricingTable";
 
 const steps = [
@@ -23,6 +29,46 @@ const steps = [
   },
 ];
 
+/*
+ * <Show> reads auth state, which is request-time data. Under cacheComponents
+ * that blocks prerendering unless it sits inside a Suspense boundary - and
+ * this is the public marketing page, the one page most worth prerendering.
+ *
+ * Every fallback below is the SIGNED-OUT variant, deliberately: an anonymous
+ * visitor is the common case here, so the prerendered HTML is already right
+ * for them, and only the signed-in minority sees a swap.
+ *
+ * SignInButton wraps a single child - it does NOT go inside <Button asChild>.
+ * Inverting them throws "You've passed multiple children components to
+ * <SignInButton/>" at render. /onboarding waits for the Clerk webhook to
+ * create the users row before forwarding to /app.
+ */
+function HeaderSignIn() {
+  return (
+    <SignInButton forceRedirectUrl="/onboarding">
+      <Button>Sign in</Button>
+    </SignInButton>
+  );
+}
+
+function HeroSignIn() {
+  return (
+    <SignInButton forceRedirectUrl="/onboarding">
+      <Button size="lg">Start practising free</Button>
+    </SignInButton>
+  );
+}
+
+function FooterSignIn() {
+  return (
+    <SignInButton forceRedirectUrl="/onboarding">
+      <button className="hover:text-foreground transition-colors">
+        Sign in
+      </button>
+    </SignInButton>
+  );
+}
+
 export default function HomePage() {
   return (
     <div className="flex min-h-screen flex-col">
@@ -38,22 +84,17 @@ export default function HomePage() {
           </div>
           <div className="flex items-center gap-2">
             <ThemeToggle />
-            <Show when="signed-out">
-              {/* SignInButton wraps a single child - it does NOT go inside
-                  <Button asChild>. Inverting these throws "You've passed
-                  multiple children components to <SignInButton/>" at render.
-                  /onboarding waits for the Clerk webhook to create the users
-                  row before forwarding to /app. */}
-              <SignInButton forceRedirectUrl="/onboarding">
-                <Button>Sign in</Button>
-              </SignInButton>
-            </Show>
-            <Show when="signed-in">
-              <Button asChild>
-                <Link href="/app">Go to dashboard</Link>
-              </Button>
-              <UserButton />
-            </Show>
+            <Suspense fallback={<HeaderSignIn />}>
+              <Show when="signed-out">
+                <HeaderSignIn />
+              </Show>
+              <Show when="signed-in">
+                <Button asChild>
+                  <Link href="/app">Go to dashboard</Link>
+                </Button>
+                <UserButton />
+              </Show>
+            </Suspense>
           </div>
         </div>
       </header>
@@ -71,16 +112,16 @@ export default function HomePage() {
               you&apos;re chasing, then tells you — specifically — what to fix.
             </p>
             <div className="mt-10 flex items-center justify-center gap-3">
-              <Show when="signed-out">
-                <SignInButton forceRedirectUrl="/onboarding">
-                  <Button size="lg">Start practising free</Button>
-                </SignInButton>
-              </Show>
-              <Show when="signed-in">
-                <Button size="lg" asChild>
-                  <Link href="/app">Go to your dashboard</Link>
-                </Button>
-              </Show>
+              <Suspense fallback={<HeroSignIn />}>
+                <Show when="signed-out">
+                  <HeroSignIn />
+                </Show>
+                <Show when="signed-in">
+                  <Button size="lg" asChild>
+                    <Link href="/app">Go to your dashboard</Link>
+                  </Button>
+                </Show>
+              </Suspense>
             </div>
           </div>
         </section>
@@ -111,9 +152,7 @@ export default function HomePage() {
 
         <section className="border-t">
           <div className="container py-16 md:py-20">
-            <h2 className="text-2xl md:text-3xl text-center mb-4">
-              Pricing
-            </h2>
+            <h2 className="text-2xl md:text-3xl text-center mb-4">Pricing</h2>
             <p className="text-muted-foreground text-center mb-12">
               Start with a free interview. Upgrade when you want more.
             </p>
@@ -128,18 +167,19 @@ export default function HomePage() {
             <BrainCircuit className="size-4" />
             <span>Land — AI Powered Job Prep</span>
           </div>
-          <Show when="signed-out">
-            <SignInButton forceRedirectUrl="/onboarding">
-              <button className="hover:text-foreground transition-colors">
-                Sign in
-              </button>
-            </SignInButton>
-          </Show>
-          <Show when="signed-in">
-            <Link href="/app" className="hover:text-foreground transition-colors">
-              Dashboard
-            </Link>
-          </Show>
+          <Suspense fallback={<FooterSignIn />}>
+            <Show when="signed-out">
+              <FooterSignIn />
+            </Show>
+            <Show when="signed-in">
+              <Link
+                href="/app"
+                className="hover:text-foreground transition-colors"
+              >
+                Dashboard
+              </Link>
+            </Show>
+          </Suspense>
         </div>
       </footer>
     </div>

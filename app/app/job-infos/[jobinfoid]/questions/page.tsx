@@ -14,32 +14,28 @@ import { cacheTag } from "next/cache";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
+import type { JobInfoParams } from "@/app/app/job-infos/[jobinfoid]/params";
 import { QuestionsClient } from "./_client";
 
 // Question generation and answer review are Gemini calls made from this
 // segment; each self-aborts at 60s.
 export const maxDuration = 90;
 
-export default async function QuestionsPage({
-  params,
-}: {
-  params: Promise<{ jobinfoid: string }>;
-}) {
-  const { jobinfoid } = await params;
-
+export default function QuestionsPage({ params }: { params: JobInfoParams }) {
   return (
     <div className="container py-4 space-y-4">
-      <JobInfoBackLink jobInfoId={jobinfoid} />
+      <JobInfoBackLink params={params} />
       <Suspense
         fallback={<Loader2 className="animate-spin size-24 mx-auto my-24" />}
       >
-        <SuspendedPage jobInfoId={jobinfoid} />
+        <SuspendedPage params={params} />
       </Suspense>
     </div>
   );
 }
 
-async function SuspendedPage({ jobInfoId }: { jobInfoId: string }) {
+async function SuspendedPage({ params }: { params: JobInfoParams }) {
+  const { jobinfoid: jobInfoId } = await params;
   const { userId, redirectToSignIn } = await getCurrentUser();
   if (userId == null) return redirectToSignIn();
 

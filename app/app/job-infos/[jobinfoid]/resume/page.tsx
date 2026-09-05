@@ -9,6 +9,7 @@ import { Loader2 } from "lucide-react";
 import { cacheTag } from "next/cache";
 import { notFound, redirect } from "next/navigation";
 import { Suspense } from "react";
+import type { JobInfoParams } from "@/app/app/job-infos/[jobinfoid]/params";
 import { ResumeClient } from "./_client";
 
 export const metadata = { title: "Resume" };
@@ -16,26 +17,21 @@ export const metadata = { title: "Resume" };
 // The Gemini call sends a whole document and self-aborts at 90s.
 export const maxDuration = 120;
 
-export default async function ResumePage({
-  params,
-}: {
-  params: Promise<{ jobinfoid: string }>;
-}) {
-  const { jobinfoid } = await params;
-
+export default function ResumePage({ params }: { params: JobInfoParams }) {
   return (
     <div className="container py-4 space-y-4 max-w-3xl">
-      <JobInfoBackLink jobInfoId={jobinfoid} />
+      <JobInfoBackLink params={params} />
       <Suspense
         fallback={<Loader2 className="animate-spin size-24 mx-auto my-24" />}
       >
-        <SuspendedPage jobInfoId={jobinfoid} />
+        <SuspendedPage params={params} />
       </Suspense>
     </div>
   );
 }
 
-async function SuspendedPage({ jobInfoId }: { jobInfoId: string }) {
+async function SuspendedPage({ params }: { params: JobInfoParams }) {
+  const { jobinfoid: jobInfoId } = await params;
   const { userId, redirectToSignIn } = await getCurrentUser();
   if (userId == null) return redirectToSignIn();
 

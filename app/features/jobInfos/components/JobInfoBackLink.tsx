@@ -7,21 +7,50 @@ import { db } from "@/app/drizzle/db";
 import { jobInfoTable } from "@/app/drizzle/schema/jobInfo";
 import { and, eq } from "drizzle-orm";
 import { getCurrentUser } from "@/app/services/clerk/lib/getCurrentUser";
+import type { JobInfoParams } from "@/app/app/job-infos/[jobinfoid]/params";
 
+/**
+ * Takes the params PROMISE rather than a resolved id: the href itself needs
+ * the route param, so awaiting it in the page would defeat prerendering for
+ * the whole page rather than just this link. Suspending here keeps the cost
+ * local to the back link.
+ */
 export function JobInfoBackLink({
-  jobInfoId,
+  params,
   className,
 }: {
-  jobInfoId: string;
+  params: JobInfoParams;
   className?: string;
 }) {
   return (
+    <Suspense
+      fallback={
+        <BackLink href="/app" className={cn("mb-4", className)}>
+          Job Description
+        </BackLink>
+      }
+    >
+      <ResolvedBackLink params={params} className={className} />
+    </Suspense>
+  );
+}
+
+async function ResolvedBackLink({
+  params,
+  className,
+}: {
+  params: JobInfoParams;
+  className?: string;
+}) {
+  const { jobinfoid } = await params;
+
+  return (
     <BackLink
-      href={`/app/job-infos/${jobInfoId}`}
+      href={`/app/job-infos/${jobinfoid}`}
       className={cn("mb-4", className)}
     >
       <Suspense fallback="Job Description">
-        <JobName jobInfoId={jobInfoId} />
+        <JobName jobInfoId={jobinfoid} />
       </Suspense>
     </BackLink>
   );

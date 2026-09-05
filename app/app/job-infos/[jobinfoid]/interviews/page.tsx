@@ -1,3 +1,4 @@
+import type { JobInfoParams } from "@/app/app/job-infos/[jobinfoid]/params";
 import { db } from "@/app/drizzle/db";
 import { InterviewTable } from "@/app/drizzle/schema/interview";
 import { getInterviewJobInfoTag } from "@/app/features/interviews/dbCache";
@@ -20,26 +21,20 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 
-export default async function InterviewsPage({
-  params,
-}: {
-  params: Promise<{ jobinfoid: string }>;
-}) {
-  const { jobinfoid } = await params;
-
+export default function InterviewsPage({ params }: { params: JobInfoParams }) {
   return (
     <div className="container py-4 items-start gap-4 space-y-4 h-screen-header flex flex-col">
-      <JobInfoBackLink jobInfoId={jobinfoid} />
+      <JobInfoBackLink params={params} />
 
       <Suspense fallback={<Loader2 className="animate-spin size-24 m-auto" />}>
-        <SuspendedPage jobInfoId={jobinfoid} />
+        <SuspendedPage params={params} />
       </Suspense>
     </div>
   );
 }
 
-async function SuspendedPage({ jobInfoId }: { jobInfoId: string }) {
-  // Simulate fetching data
+async function SuspendedPage({ params }: { params: JobInfoParams }) {
+  const { jobinfoid: jobInfoId } = await params;
   const { userId, redirectToSignIn } = await getCurrentUser();
   if (userId == null) return redirectToSignIn();
 

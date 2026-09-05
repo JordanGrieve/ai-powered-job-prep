@@ -1,3 +1,4 @@
+import type { JobInfoParams } from "@/app/app/job-infos/[jobinfoid]/params";
 import { db } from "@/app/drizzle/db";
 import { jobInfoTable } from "@/app/drizzle/schema";
 import { getJobInfoIdTag } from "@/app/features/jobInfos/dbCache";
@@ -13,12 +14,11 @@ import { VoiceProvider } from "@humeai/voice-react";
 import { StartCall } from "./_StartCall";
 import { canCreateInterview } from "@/app/features/interviews/permissions";
 
-export default async function NewInterviewPage({
+export default function NewInterviewPage({
   params,
 }: {
-  params: Promise<{ jobinfoid: string }>;
+  params: JobInfoParams;
 }) {
-  const { jobinfoid: jobInfoId } = await params;
   return (
     <Suspense
       fallback={
@@ -27,12 +27,13 @@ export default async function NewInterviewPage({
         </div>
       }
     >
-      <SuspendedComponent jobInfoId={jobInfoId} />
+      <SuspendedComponent params={params} />
     </Suspense>
   );
 }
 
-async function SuspendedComponent({ jobInfoId }: { jobInfoId: string }) {
+async function SuspendedComponent({ params }: { params: JobInfoParams }) {
+  const { jobinfoid: jobInfoId } = await params;
   const { userId, redirectToSignIn, user } = await getCurrentUser({
     allData: true,
   });
