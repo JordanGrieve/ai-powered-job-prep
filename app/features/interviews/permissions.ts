@@ -30,6 +30,14 @@ export async function canCreateInterview(): Promise<boolean> {
 
     return (await getUserInterviewCount()) < 1;
   } catch (error) {
+    // Next signals control flow by throwing: redirect(), notFound(), and the
+    // dynamic-rendering bailout all surface as errors carrying a `digest`.
+    // Converting those into a PermissionCheckError breaks Next's own
+    // static/dynamic detection - the build log filled with bogus "permission
+    // check failed" errors from prerendering /app/upgrade. Let them through
+    // untouched.
+    if (isNextControlFlow(error)) throw error;
+
     log.error("interview permission check failed", error);
     // Deliberately NOT `return false`. Swallowing this is what made a database
     // fault look like a plan limit.
@@ -38,6 +46,20 @@ export async function canCreateInterview(): Promise<boolean> {
       { cause: error },
     );
   }
+}
+
+/**
+ * True for the errors Next throws as control flow rather than as failures.
+ * They are identified by a string `digest` (NEXT_REDIRECT, NEXT_NOT_FOUND,
+ * DYNAMIC_SERVER_USAGE) and must propagate untouched.
+ */
+function isNextControlFlow(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "digest" in error &&
+    typeof (error as { digest: unknown }).digest === "string"
+  );
 }
 
 /** Distinguishes "the check itself broke" from "you are not allowed". */
