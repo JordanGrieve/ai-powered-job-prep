@@ -6,7 +6,10 @@ import {
 } from "./ratedFeedback";
 
 const GENERATION_TIMEOUT_MS = 90_000;
-const MAX_OUTPUT_TOKENS = 3072;
+// Five sections including three-to-five before/after rewrite pairs, which are
+// verbose. Raised alongside the other two after truncation was found to fail
+// as an unparseable object rather than a clean error.
+const MAX_OUTPUT_TOKENS = 5000;
 
 /**
  * Gemini accepts these inline. DOCX is NOT on the list - the file has to be
