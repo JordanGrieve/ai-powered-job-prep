@@ -49,6 +49,8 @@
   --color-card: var(--card);
   --color-warning: var(--warning);
   --color-warning-foreground: var(--warning-foreground);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -103,6 +105,10 @@
   --accent-foreground: oklch(0.2478 0 0);
   --destructive: oklch(0.6254 0.2125 33.0722);
   --warning: oklch(0.8783 0.1853 85.3174);
+  /* Green, matching the existing ring hue (~158) so it reads as part of the
+     palette rather than a bolted-on Tailwind green. */
+  --success: oklch(0.6237 0.1402 158.0);
+  --success-foreground: oklch(0.9851 0 0);
   --border: oklch(0.9037 0 0);
   --input: oklch(0.9731 0 0);
   --ring: oklch(0.8348 0.1302 160.908);
@@ -164,6 +170,8 @@
   --accent-foreground: oklch(0.9851 0 0);
   --destructive: oklch(0.4659 0.1386 29.4477);
   --warning: oklch(0.6362 0.1583 85.6691);
+  --success: oklch(0.7015 0.1585 156.0);
+  --success-foreground: oklch(0.1776 0 0);
   --border: oklch(0.2809 0 0);
   --input: oklch(0.2603 0 0);
   --ring: oklch(0.8003 0.1821 151.711);
