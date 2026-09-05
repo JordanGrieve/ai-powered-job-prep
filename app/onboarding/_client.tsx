@@ -26,26 +26,27 @@ export function OnBoardingClient() {
     let attempts = 0;
     let delay = INITIAL_DELAY_MS;
 
-    // Create the row ourselves before falling back to waiting for the webhook.
-    // This is what makes signup work with no inbound callback at all - locally,
-    // or in a deployment where the webhook endpoint or signing secret is not
+    // Whichever of the two routes gets there first wins; the other is a no-op.
+    let redirected = false;
+    function succeed() {
+      if (cancelled || redirected) return;
+      redirected = true;
+      router.replace("/app");
+    }
+
+    // Create the row ourselves rather than waiting for the webhook. This is
+    // what makes signup work with no inbound callback at all - locally, or in
+    // a deployment where the webhook endpoint or signing secret is not
     // configured. Both paths upsert on the Clerk id, so a webhook arriving
     // mid-flight is a no-op rather than a conflict.
-    async function provisionThenPoll() {
+    async function provision() {
       if (cancelled) return;
 
       try {
-        if (await provisionCurrentUserAction()) {
-          if (!cancelled) router.replace("/app");
-          return;
-        }
+        if (await provisionCurrentUserAction()) succeed();
       } catch (error) {
         console.error("[onboarding] provisioning failed", error);
       }
-
-      // Provisioning did not succeed (Clerk unreachable, or the database is
-      // down). The webhook may still land, so keep polling.
-      if (!cancelled) void poll();
     }
 
     async function poll() {
@@ -54,7 +55,7 @@ export function OnBoardingClient() {
 
       try {
         if (await isCurrentUserProvisioned()) {
-          if (!cancelled) router.replace("/app");
+          succeed();
           return;
         }
       } catch (error) {
@@ -72,7 +73,15 @@ export function OnBoardingClient() {
       timeoutId = setTimeout(poll, delay);
     }
 
-    void provisionThenPoll();
+    // Deliberately NOT sequential. Chaining the poll behind provisioning meant
+    // a provisioning call that never settles also stopped the poll from ever
+    // starting - so a hung query left the user on this screen forever, which is
+    // the exact failure provisioning exists to prevent. The pg pool bounds
+    // connection ACQUISITION (connectionTimeoutMillis) but not query duration,
+    // and currentUser() is a network call to Clerk, so neither await is
+    // guaranteed to settle. Racing them means either route alone is enough.
+    void provision();
+    timeoutId = setTimeout(poll, INITIAL_DELAY_MS);
 
     return () => {
       cancelled = true;
