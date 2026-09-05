@@ -13,7 +13,19 @@ function createPool() {
     connectionString: env.DATABASE_URL,
     max: 10,
     idleTimeoutMillis: 30_000,
+    // Bounds acquiring a connection only - NOT how long a query may then run.
     connectionTimeoutMillis: 10_000,
+    // Without these a query that never returns hangs its caller forever, and
+    // "forever" propagates: an awaited db call with no timeout is why the
+    // onboarding poll used to be chainable behind provisioning at all. Every
+    // query in this app is a small indexed read or a single-row write, so 15s
+    // is far beyond any legitimate case.
+    //
+    // query_timeout is client-side (node-postgres gives up waiting);
+    // statement_timeout is server-side (Postgres cancels the query), so the
+    // work actually stops rather than running on unattended.
+    query_timeout: 15_000,
+    statement_timeout: 15_000,
   });
 }
 
