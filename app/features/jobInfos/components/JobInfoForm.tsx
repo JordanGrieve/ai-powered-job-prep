@@ -135,9 +135,14 @@ export function JobInfoForm({
             <FormItem>
               <FormLabel>Description</FormLabel>
               <FormControl>
+                {/* The base Textarea sets `field-sizing-content`, which grows
+                    the box to fit its value with NO upper bound - pasting a
+                    full job advert made it thousands of pixels tall and pushed
+                    the save button off screen. max-h caps the growth and hands
+                    the overflow back to a scrollbar. */}
                 <Textarea
                   placeholder="Enter description"
-                  className="min-h-[120px]"
+                  className="min-h-[120px] max-h-[50vh] overflow-y-auto"
                   {...field}
                 />
               </FormControl>
