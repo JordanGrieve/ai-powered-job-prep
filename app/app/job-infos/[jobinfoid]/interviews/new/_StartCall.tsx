@@ -6,6 +6,13 @@ import {
   createInterview,
   updateInterview,
 } from "@/app/features/interviews/actions";
+import {
+  INTERVIEW_WARNING_SECONDS,
+  MAX_INTERVIEW_SECONDS,
+  formatRemaining,
+  parseDurationToSeconds,
+  remainingSeconds,
+} from "@/app/features/interviews/duration";
 import { CondensedMessages } from "@/app/services/hume/components/CondensedMessages";
 import { condenseChatMessages } from "@/app/services/hume/lib/condensedChatMessages";
 import { Button } from "@/components/ui/button";
@@ -35,13 +42,16 @@ export function StartCall({
     imageUrl: string;
   };
 }) {
-  const { connect, readyState, chatMetadata, callDurationTimestamp } =
+  const { connect, disconnect, readyState, chatMetadata, callDurationTimestamp } =
     useVoice();
   const [interviewId, setInterviewId] = useState<string | null>(null);
   const durationRef = useRef(callDurationTimestamp);
   // humeChatId is write-once server-side, so guard against a duplicate attempt
   // when this effect re-runs.
   const chatIdWrittenRef = useRef(false);
+  // disconnect() is not instantaneous - without this the effect re-fires on
+  // every duration tick between the call to disconnect and CLOSED arriving.
+  const capReachedRef = useRef(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -104,6 +114,28 @@ export function StartCall({
     }, 10000);
     return () => clearInterval(intervalId);
   }, [chatMetadata?.chatId, interviewId]);
+
+  // Enforce the duration cap.
+  //
+  // Hume bills per connected minute and nothing else stops a call, so this is
+  // the only thing standing between `unlimited_interviews` and an unbounded
+  // bill. Hanging up here lands in the CLOSED branch below, which writes the
+  // final duration and navigates - the same path as pressing End Call, so a
+  // capped interview is saved and gets feedback exactly like any other.
+  //
+  // A null timestamp means "unknown", never "0 elapsed": ignoring it would be
+  // fine, but treating it as 0 would hold a call open indefinitely.
+  useEffect(() => {
+    if (interviewId == null) return;
+    if (readyState !== VoiceReadyState.OPEN) return;
+    if (capReachedRef.current) return;
+
+    const elapsed = parseDurationToSeconds(callDurationTimestamp);
+    if (elapsed == null || elapsed < MAX_INTERVIEW_SECONDS) return;
+
+    capReachedRef.current = true;
+    disconnect();
+  }, [callDurationTimestamp, disconnect, interviewId, readyState]);
 
   // Handle Disconnect
   useEffect(() => {
@@ -235,9 +267,7 @@ function Controls() {
       <div className="self-stretch">
         <FftVisualizer fft={micFft} />
       </div>
-      <div className="text-sm text-muted-foreground tabular-nums">
-        {callDurationTimestamp}
-      </div>
+      <TimeRemaining timestamp={callDurationTimestamp} />
       <Button
         variant="ghost"
         size="icon"
@@ -247,6 +277,40 @@ function Controls() {
         <PhoneOffIcon className="text-destructive" />
         <span className="sr-only">End Call</span>
       </Button>
+    </div>
+  );
+}
+
+/**
+ * Counts DOWN to the cap rather than up from zero. The call ends on its own at
+ * MAX_INTERVIEW_SECONDS, so the number that matters to the person talking is
+ * how long they have left - an elapsed timer gives no warning at all.
+ *
+ * Falls back to the raw elapsed timestamp if Hume sends something unparseable,
+ * which is what this showed before the cap existed.
+ */
+function TimeRemaining({ timestamp }: { timestamp: string | null }) {
+  const elapsed = parseDurationToSeconds(timestamp);
+
+  if (elapsed == null) {
+    return (
+      <div className="text-sm text-muted-foreground tabular-nums">
+        {timestamp}
+      </div>
+    );
+  }
+
+  const left = remainingSeconds(elapsed);
+  const isWarning = left <= INTERVIEW_WARNING_SECONDS;
+
+  return (
+    <div
+      className={`text-sm tabular-nums ${
+        isWarning ? "text-destructive font-medium" : "text-muted-foreground"
+      }`}
+      title={`Interviews are capped at ${MAX_INTERVIEW_SECONDS / 60} minutes`}
+    >
+      {formatRemaining(left)} left
     </div>
   );
 }
