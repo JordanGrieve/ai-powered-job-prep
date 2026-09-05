@@ -25,9 +25,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <ClerkProvider>
-      <html lang="en" suppressHydrationWarning>
-        <body className={`${outfitSans.variable} antialiased font-sans`}>
+    // Clerk v7 requires ClerkProvider INSIDE <body> rather than wrapping
+    // <html>. Wrapping the document element is a v6 pattern and no longer
+    // supported.
+    <html lang="en" suppressHydrationWarning>
+      <body className={`${outfitSans.variable} antialiased font-sans`}>
+        <ClerkProvider>
           <ThemeProvider
             attribute="class"
             defaultTheme="system"
@@ -38,8 +41,8 @@ export default function RootLayout({
             {children}
             <Toaster />
           </ThemeProvider>
-        </body>
-      </html>
-    </ClerkProvider>
+        </ClerkProvider>
+      </body>
+    </html>
   );
 }

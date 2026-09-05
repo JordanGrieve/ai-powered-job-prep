@@ -26,22 +26,27 @@ const csp = [
 ].join("; ");
 
 const nextConfig: NextConfig = {
-  // NOT migrated to the top-level `cacheComponents` flag, despite the
-  // deprecation warning on 16.3.x. It is not a rename - cacheComponents is a
-  // stricter prerendering mode, and the blocker is a DEPENDENCY, not our code:
+  // Still on the deprecated `experimental.useCache` rather than the top-level
+  // `cacheComponents` flag - but the reason has CHANGED, and the remaining
+  // work is now ours rather than a dependency's.
   //
-  //   Error: Route ".../edit": Next.js encountered URL data `usePathname()`
-  //   in a Client Component outside of `<Suspense>`.
-  //     at ClerkProvider (app/services/clerk/components/ClerkProvider.tsx:6:5)
-  //     at RootLayout (app/layout.tsx:28:5)
+  // Previously blocked by @clerk/nextjs v6, whose ClerkProvider called
+  // usePathname() internally and wrapped the whole app from the root layout,
+  // failing every route with CLIENT_HOOK_DYNAMIC. The v7 upgrade fixed that.
   //
-  // @clerk/nextjs's ClerkProvider calls usePathname() internally and wraps the
-  // whole app from the root layout, so every route fails. Suspending it would
-  // mean nothing prerenders at all, and `export const instant = false` per
-  // route buys nothing. We are on @clerk/nextjs 6.36.10 against 7.9.1 latest,
-  // so the unblocking step is that major upgrade - tracked separately.
+  // What blocks it now:
   //
-  // useCache still works here; this is a deprecation, not a break.
+  //   Error: Route ".../edit": Next.js encountered uncached or runtime data
+  //   during prerendering.
+  //     at JobInfoNewPage (app/app/job-infos/[jobinfoid]/edit/page.tsx:19:25)
+  //
+  // Four dynamic routes `await params` at the top of the page component.
+  // Under cacheComponents that is runtime data outside a Suspense boundary,
+  // so the page must instead pass the params promise down to a suspended
+  // child. That is a real refactor of every dynamic page and does not belong
+  // inside an auth-library upgrade.
+  //
+  // useCache still works on 16.3.3; this is a deprecation, not a break.
   experimental: {
     useCache: true,
     serverActions: {
