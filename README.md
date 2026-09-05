@@ -179,5 +179,8 @@ almost certainly why.
   live interview page, confirm zero violations, then rename the header to
   `Content-Security-Policy`.
 - Migrations must run before the new build serves traffic. The `migrate` job in
-  `.github/workflows/ci.yml` does this on push to `main` and needs `DB_*`
-  repository secrets.
+  `.github/workflows/ci.yml` does this on push to `main` and needs a single
+  `DATABASE_URL` repository secret (Settings → Secrets and variables →
+  Actions). Without it the job logs a notice and exits cleanly rather than
+  failing. Use the connection string your provider gives you verbatim — the
+  `sslmode` and `channel_binding` parameters matter.

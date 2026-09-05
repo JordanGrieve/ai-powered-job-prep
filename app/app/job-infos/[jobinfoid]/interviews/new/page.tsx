@@ -38,6 +38,10 @@ async function SuspendedComponent({ jobInfoId }: { jobInfoId: string }) {
   });
   if (userId == null || user == null) return redirectToSignIn();
 
+  // Deliberately NOT caught: a PermissionCheckError here reaches the error
+  // boundary and says "something went wrong", which is true. Redirecting to
+  // /app/upgrade on a database fault is the exact bug this replaced - it told
+  // paying customers they were out of quota.
   if (!(await canCreateInterview())) return redirect("/app/upgrade");
 
   const jobInfo = await getJobInfo(jobInfoId, userId);

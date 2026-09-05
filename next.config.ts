@@ -26,6 +26,22 @@ const csp = [
 ].join("; ");
 
 const nextConfig: NextConfig = {
+  // NOT migrated to the top-level `cacheComponents` flag, despite the
+  // deprecation warning on 16.3.x. It is not a rename - cacheComponents is a
+  // stricter prerendering mode, and the blocker is a DEPENDENCY, not our code:
+  //
+  //   Error: Route ".../edit": Next.js encountered URL data `usePathname()`
+  //   in a Client Component outside of `<Suspense>`.
+  //     at ClerkProvider (app/services/clerk/components/ClerkProvider.tsx:6:5)
+  //     at RootLayout (app/layout.tsx:28:5)
+  //
+  // @clerk/nextjs's ClerkProvider calls usePathname() internally and wraps the
+  // whole app from the root layout, so every route fails. Suspending it would
+  // mean nothing prerenders at all, and `export const instant = false` per
+  // route buys nothing. We are on @clerk/nextjs 6.36.10 against 7.9.1 latest,
+  // so the unblocking step is that major upgrade - tracked separately.
+  //
+  // useCache still works here; this is a deprecation, not a break.
   experimental: {
     useCache: true,
     serverActions: {

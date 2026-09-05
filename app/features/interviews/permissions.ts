@@ -7,24 +7,64 @@ import { createLogger } from "@/lib/logger";
 
 const log = createLogger("permissions");
 
-export async function canCreateInterview() {
-  return await Promise.any([
-    hasPermission("unlimited_interviews").then(
-      (bool) => bool || Promise.reject(),
-    ),
-    Promise.all([hasPermission("1_interview"), getUserInterviewCount()]).then(
-      ([bool, count]) => {
-        if (bool && count < 1) return true;
-        return Promise.reject();
-      },
-    ),
-  ]).catch((error) => {
-    // AggregateError here means every branch rejected. That is USUALLY a
-    // legitimate denial, but a failing count query or a failing auth() call
-    // lands here too and is indistinguishable - so at least record it.
-    log.warn("interview permission check denied", { error: String(error) });
-    return false;
-  });
+/**
+ * Whether the caller may start another interview.
+ *
+ * Rewritten from a `Promise.any` over branches that used bare
+ * `Promise.reject()` as control flow, wrapped in `.catch(() => false)`. That
+ * shape could not tell a legitimate denial from a fault: a dropped database
+ * connection or a failing auth() call produced exactly the same `false` as
+ * "you are out of quota". The user-visible consequence was the worst kind -
+ * a PAYING customer told they had hit their plan limit because Postgres
+ * blipped, with nothing in the logs to contradict it.
+ *
+ * Now the two are distinguishable. A fault is logged as an error and
+ * rethrown; callers surface it as a generic failure rather than a paywall.
+ * Denial stays a plain `false`.
+ */
+export async function canCreateInterview(): Promise<boolean> {
+  try {
+    // Unlimited short-circuits: no reason to count rows we will ignore.
+    if (await hasPermission("unlimited_interviews")) return true;
+    if (!(await hasPermission("1_interview"))) return false;
+
+    return (await getUserInterviewCount()) < 1;
+  } catch (error) {
+    // Next signals control flow by throwing: redirect(), notFound(), and the
+    // dynamic-rendering bailout all surface as errors carrying a `digest`.
+    // Converting those into a PermissionCheckError breaks Next's own
+    // static/dynamic detection - the build log filled with bogus "permission
+    // check failed" errors from prerendering /app/upgrade. Let them through
+    // untouched.
+    if (isNextControlFlow(error)) throw error;
+
+    log.error("interview permission check failed", error);
+    // Deliberately NOT `return false`. Swallowing this is what made a database
+    // fault look like a plan limit.
+    throw new PermissionCheckError(
+      "Could not check your plan. Please try again.",
+      { cause: error },
+    );
+  }
+}
+
+/**
+ * True for the errors Next throws as control flow rather than as failures.
+ * They are identified by a string `digest` (NEXT_REDIRECT, NEXT_NOT_FOUND,
+ * DYNAMIC_SERVER_USAGE) and must propagate untouched.
+ */
+function isNextControlFlow(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "digest" in error &&
+    typeof (error as { digest: unknown }).digest === "string"
+  );
+}
+
+/** Distinguishes "the check itself broke" from "you are not allowed". */
+export class PermissionCheckError extends Error {
+  readonly name = "PermissionCheckError";
 }
 
 export async function getUserInterviewCount() {

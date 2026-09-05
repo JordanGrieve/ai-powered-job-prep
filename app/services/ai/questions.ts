@@ -9,7 +9,14 @@ import { generateRatedFeedback } from "./ratedFeedback";
 const log = createLogger("gemini");
 
 const GENERATION_TIMEOUT_MS = 60_000;
-const MAX_OUTPUT_TOKENS = 512;
+/**
+ * Generous for a one-sentence question because gemini-2.5-flash is a THINKING
+ * model: reasoning tokens are billed against maxOutputTokens before any text
+ * is produced. At 512 the budget was consumed by reasoning and the call
+ * returned finishReason "length" with a truncated 107-character fragment -
+ * which made question generation fail 100% of the time, not intermittently.
+ */
+const MAX_OUTPUT_TOKENS = 2048;
 
 type Generated<T> = { error: true; message: string } | ({ error: false } & T);
 
@@ -72,8 +79,12 @@ async function generate(system: string, prompt: string, maxTokens: number) {
   });
 
   if (text.trim().length === 0 || finishReason !== "stop") {
+    // Name truncation explicitly. "unusable generation" sent me looking at the
+    // prompt when the actual cause was the token ceiling.
     throw new Error(
-      `unusable generation (finishReason=${finishReason}, length=${text.length})`,
+      finishReason === "length"
+        ? `output truncated at maxOutputTokens=${maxTokens} (produced ${text.length} chars) - raise the budget; reasoning tokens count toward it`
+        : `unusable generation (finishReason=${finishReason}, length=${text.length})`,
     );
   }
 

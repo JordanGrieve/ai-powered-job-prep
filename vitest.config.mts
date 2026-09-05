@@ -20,7 +20,14 @@ export default defineConfig({
     // @clerk/nextjs/server at module scope, so they need vi.mock in a node
     // environment. A jsdom-only setup would never reach them.
     environment: "node",
+    // Integration tests hit the real database and the real model, so they are
+    // opt-in via test:integration and never run in `npm test` or CI.
     include: ["**/*.test.ts"],
-    exclude: ["node_modules/**", ".next/**", "e2e/**"],
+    exclude: [
+      "node_modules/**",
+      ".next/**",
+      "e2e/**",
+      "**/*.integration.test.ts",
+    ],
   },
 });

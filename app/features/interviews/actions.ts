@@ -9,7 +9,7 @@ import { cacheTag, revalidateTag } from "next/cache";
 import { insertInterview, updateInterview as updateInterviewDb } from "./db";
 import { getInterviewIdTag } from "./dbCache";
 import { InterviewTable } from "@/app/drizzle/schema/interview";
-import { canCreateInterview } from "./permissions";
+import { canCreateInterview, PermissionCheckError } from "./permissions";
 import { PLAN_LIMIT_MESSAGE, RATE_LIMIT_MESSAGE } from "@/lib/errorToast";
 import arcjet, { tokenBucket, request } from "@arcjet/next";
 import { env } from "@/app/data/env/server";
@@ -86,8 +86,17 @@ export async function createInterview({
     return { error: true, message: "Invalid job info" };
   }
 
-  if (!(await canCreateInterview())) {
-    return { error: true, message: PLAN_LIMIT_MESSAGE };
+  // A thrown PermissionCheckError means the check itself broke, NOT that the
+  // user is out of quota - do not sell them an upgrade for a database blip.
+  try {
+    if (!(await canCreateInterview())) {
+      return { error: true, message: PLAN_LIMIT_MESSAGE };
+    }
+  } catch (error) {
+    if (error instanceof PermissionCheckError) {
+      return { error: true, message: error.message };
+    }
+    throw error;
   }
 
   // Ownership is checked BEFORE the rate limiter so that probing with someone
@@ -149,8 +158,15 @@ export async function updateInterview(
     // insertInterview writes null - so quota is consumed HERE, not at create
     // time. Without this re-check a free user could create several interviews
     // in parallel tabs while the count was still 0 and then start them all.
-    if (!(await canCreateInterview())) {
-      return { error: true as const, message: PLAN_LIMIT_MESSAGE };
+    try {
+      if (!(await canCreateInterview())) {
+        return { error: true as const, message: PLAN_LIMIT_MESSAGE };
+      }
+    } catch (error) {
+      if (error instanceof PermissionCheckError) {
+        return { error: true as const, message: error.message };
+      }
+      throw error;
     }
   }
 

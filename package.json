@@ -15,7 +15,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "db:seed": "tsx --env-file=.env app/drizzle/seed.ts",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "test:integration": "vitest run --config vitest.integration.mts"
   },
   "dependencies": {
     "@ai-sdk/google": "^3.0.30",
