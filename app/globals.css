@@ -51,6 +51,7 @@
   --color-warning-foreground: var(--warning-foreground);
   --color-success: var(--success);
   --color-success-foreground: var(--success-foreground);
+  --color-chart-line: var(--chart-line);
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -109,6 +110,11 @@
      palette rather than a bolted-on Tailwind green. */
   --success: oklch(0.6237 0.1402 158.0);
   --success-foreground: oklch(0.9851 0 0);
+  /* Progress chart mark. Validated with the dataviz palette validator against
+     the card surface (#fcfcfc): lightness band, chroma floor and >=3:1
+     contrast all pass. Deliberately NOT --primary or --chart-1 - both sit at
+     L 0.79+ and fail the contrast check on a light surface. */
+  --chart-line: oklch(0.6237 0.1402 158.0);
   --border: oklch(0.9037 0 0);
   --input: oklch(0.9731 0 0);
   --ring: oklch(0.8348 0.1302 160.908);
@@ -172,6 +178,10 @@
   --warning: oklch(0.6362 0.1583 85.6691);
   --success: oklch(0.7015 0.1585 156.0);
   --success-foreground: oklch(0.1776 0 0);
+  /* Re-stepped for dark, NOT an automatic flip: the light mark (L 0.62) and
+     the success token (L 0.70) both fall outside the validator's dark band
+     (0.48-0.67). This value is validated against the dark card surface. */
+  --chart-line: oklch(0.6600 0.1450 157.0);
   --border: oklch(0.2809 0 0);
   --input: oklch(0.2603 0 0);
   --ring: oklch(0.8003 0.1821 151.711);

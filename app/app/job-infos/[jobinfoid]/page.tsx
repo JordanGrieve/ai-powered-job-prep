@@ -20,6 +20,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { Suspense } from "react";
 import { canCreateInterview } from "@/app/features/interviews/permissions";
+import { ProgressCard } from "@/app/features/progress/ProgressCard";
 import { canCreateQuestion } from "@/app/features/questions/permissions";
 import { canRunResumeAnalysis } from "@/app/features/resume/permissions";
 
@@ -125,6 +126,14 @@ export default async function JobInfoPage({
             <GatedOptionCards jobInfoId={jobInfoId} />
           </Suspense>
         </div>
+
+        {/* Suspended separately from the cards: this reads three tables, and
+            the action cards are what the user came to click. */}
+        <Suspense
+          fallback={<Skeleton className="h-64 w-full rounded-xl" />}
+        >
+          <ProgressCard jobInfoId={jobInfoId} />
+        </Suspense>
       </div>
     </div>
   );
