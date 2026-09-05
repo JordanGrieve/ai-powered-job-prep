@@ -10,17 +10,12 @@ import { Loader2 } from "lucide-react";
 import { cacheTag } from "next/cache";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
+import type { JobInfoParams } from "@/app/app/job-infos/[jobinfoid]/params";
 
-export default async function JobInfoNewPage({
-  params,
-}: {
-  params: Promise<{ jobinfoid: string }>;
-}) {
-  const { jobinfoid } = await params;
-
+export default function JobInfoNewPage({ params }: { params: JobInfoParams }) {
   return (
     <div className="container my-4 max-w-5xl space-y-4">
-      <JobInfoBackLink jobInfoId={jobinfoid} />
+      <JobInfoBackLink params={params} />
       <h1 className="text-3xl md:text-4xl">Edit Job Description</h1>
 
       <Card>
@@ -28,7 +23,7 @@ export default async function JobInfoNewPage({
           <Suspense
             fallback={<Loader2 className="animate-spin size-24 mx-auto" />}
           >
-            <SuspendedForm jobInfoId={jobinfoid} />
+            <SuspendedForm params={params} />
           </Suspense>
         </CardContent>
       </Card>
@@ -36,7 +31,8 @@ export default async function JobInfoNewPage({
   );
 }
 
-async function SuspendedForm({ jobInfoId }: { jobInfoId: string }) {
+async function SuspendedForm({ params }: { params: JobInfoParams }) {
+  const { jobinfoid: jobInfoId } = await params;
   const { userId, redirectToSignIn } = await getCurrentUser();
   if (userId == null) return redirectToSignIn();
 

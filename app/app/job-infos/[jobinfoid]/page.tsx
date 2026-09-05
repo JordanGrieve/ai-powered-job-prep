@@ -1,3 +1,4 @@
+import type { JobInfoParams } from "@/app/app/job-infos/[jobinfoid]/params";
 import { db } from "@/app/drizzle/db";
 import { jobInfoTable } from "@/app/drizzle/schema/jobInfo";
 import { getJobInfoIdTag } from "@/app/features/jobInfos/dbCache";
@@ -67,17 +68,14 @@ const options = [
   },
 ] as const;
 
-export default async function JobInfoPage({
-  params,
-}: {
-  params: Promise<{ jobinfoid: string }>;
-}) {
-  const { jobinfoid: jobInfoId } = await params;
-
-  const jobInfo = getCurrentUser().then(
-    async ({ userId, redirectToSignIn }) => {
+export default function JobInfoPage({ params }: { params: JobInfoParams }) {
+  // Not awaited here: the promise is threaded into the suspended children so
+  // the page shell prerenders. Chaining off it keeps the existing
+  // SuspendedItem streaming behaviour intact.
+  const jobInfo = Promise.all([params, getCurrentUser()]).then(
+    async ([{ jobinfoid }, { userId, redirectToSignIn }]) => {
       if (userId == null) return redirectToSignIn();
-      const jobInfo = await getJobInfo(jobInfoId, userId);
+      const jobInfo = await getJobInfo(jobinfoid, userId);
       if (jobInfo == null) return notFound();
       return jobInfo;
     },
@@ -121,8 +119,11 @@ export default async function JobInfoPage({
           </p>
         </header>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-col-3 gap-6 has-hover:*:not-hover:opacity-70">
-          <Suspense fallback={<OptionCards jobInfoId={jobInfoId} />}>
-            <GatedOptionCards jobInfoId={jobInfoId} />
+          {/* The fallback needs the id too, so it also suspends - the whole
+              card grid streams in together rather than the shell rendering
+              hrefs it does not have yet. */}
+          <Suspense fallback={<OptionCardsSkeleton />}>
+            <GatedOptionCards params={params} />
           </Suspense>
         </div>
       </div>
@@ -130,12 +131,23 @@ export default async function JobInfoPage({
   );
 }
 
+function OptionCardsSkeleton() {
+  return (
+    <>
+      {options.map((option) => (
+        <Skeleton key={option.href} className="h-32 w-full rounded-xl" />
+      ))}
+    </>
+  );
+}
+
 /**
- * Resolves the three entitlements, then renders the cards. Suspended so the
- * page header streams immediately - the permission checks each hit Clerk and
- * two of them also count rows.
+ * Resolves the route param and the three entitlements, then renders the cards.
+ * Suspended so the page header streams immediately - the permission checks
+ * each hit Clerk and two of them also count rows.
  */
-async function GatedOptionCards({ jobInfoId }: { jobInfoId: string }) {
+async function GatedOptionCards({ params }: { params: JobInfoParams }) {
+  const { jobinfoid: jobInfoId } = await params;
   // On a failed check, fall back to "allowed". A wrong Upgrade badge tells a
   // paying customer they need to pay again; a wrong open card just sends them
   // to a feature page that re-checks and redirects properly.

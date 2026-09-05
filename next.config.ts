@@ -26,29 +26,27 @@ const csp = [
 ].join("; ");
 
 const nextConfig: NextConfig = {
-  // Still on the deprecated `experimental.useCache` rather than the top-level
-  // `cacheComponents` flag - but the reason has CHANGED, and the remaining
-  // work is now ours rather than a dependency's.
+  // Replaces the deprecated `experimental.useCache`. Not a rename -
+  // cacheComponents is a stricter prerendering mode, and reaching it took two
+  // steps: the @clerk/nextjs v7 upgrade (v6's ClerkProvider called
+  // usePathname() internally and failed every route), then moving all
+  // request-time data behind Suspense boundaries.
   //
-  // Previously blocked by @clerk/nextjs v6, whose ClerkProvider called
-  // usePathname() internally and wrapped the whole app from the root layout,
-  // failing every route with CLIENT_HOOK_DYNAMIC. The v7 upgrade fixed that.
+  // The rule it enforces: anything only knowable at request time - `params`,
+  // `auth()`, `cookies()`, `headers()`, a client hook reading the URL - must
+  // sit inside <Suspense> or the route cannot prerender. Pages therefore stay
+  // synchronous and thread promises down to suspended children rather than
+  // awaiting at the top.
   //
-  // What blocks it now:
+  // Payoff: every route went from ƒ (fully dynamic) to ◐ (partial prerender),
+  // and prerendered pages went 10 -> 19. Each page now ships a static shell
+  // immediately and streams the personalised parts in.
   //
-  //   Error: Route ".../edit": Next.js encountered uncached or runtime data
-  //   during prerendering.
-  //     at JobInfoNewPage (app/app/job-infos/[jobinfoid]/edit/page.tsx:19:25)
-  //
-  // Four dynamic routes `await params` at the top of the page component.
-  // Under cacheComponents that is runtime data outside a Suspense boundary,
-  // so the page must instead pass the params promise down to a suspended
-  // child. That is a real refactor of every dynamic page and does not belong
-  // inside an auth-library upgrade.
-  //
-  // useCache still works on 16.3.3; this is a deprecation, not a break.
+  // /onboarding is the one deliberate opt-out (`export const instant = false`)
+  // - it exists only to make an auth decision and redirect, so there is no
+  // shell worth prerendering.
+  cacheComponents: true,
   experimental: {
-    useCache: true,
     serverActions: {
       // Resume uploads go through a server action; the default cap is 1MB.
       bodySizeLimit: "6mb",

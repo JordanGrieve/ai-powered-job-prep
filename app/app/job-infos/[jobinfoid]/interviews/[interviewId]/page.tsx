@@ -1,3 +1,4 @@
+import type { InterviewParams } from "@/app/app/job-infos/[jobinfoid]/params";
 import { db } from "@/app/drizzle/db";
 import { InterviewTable } from "@/app/drizzle/schema";
 import { generateInterviewFeedback } from "@/app/features/interviews/actions";
@@ -30,15 +31,15 @@ import { Suspense } from "react";
 // AI service aborts itself at 100s, comfortably inside this budget.
 export const maxDuration = 120;
 
-export default async function InterviewPage({
+export default function InterviewPage({
   params,
 }: {
-  params: Promise<{ jobinfoid: string; interviewId: string }>;
+  params: InterviewParams;
 }) {
-  const { jobinfoid, interviewId } = await params;
-
-  const interview = getCurrentUser().then(
-    async ({ userId, redirectToSignIn }) => {
+  // Chained off the params promise rather than awaited, so the page shell
+  // prerenders and the existing SuspendedItem streaming still works.
+  const interview = Promise.all([params, getCurrentUser()]).then(
+    async ([{ interviewId }, { userId, redirectToSignIn }]) => {
       if (userId == null) return redirectToSignIn();
 
       const interview = await getInterview(interviewId, userId);
@@ -49,9 +50,13 @@ export default async function InterviewPage({
 
   return (
     <div className="container my-4 space-y-4">
-      <BackLink href={`/app/job-infos/${jobinfoid}/interviews`}>
-        All Interviews
-      </BackLink>
+      {/* The href needs the route param, so this link suspends on its own
+          rather than forcing the whole page to wait for it. */}
+      <Suspense
+        fallback={<BackLink href="/app">All Interviews</BackLink>}
+      >
+        <InterviewsBackLink params={params} />
+      </Suspense>
       <div className="space-y-6">
         <div className="flex gap-2 justify-between">
           <div className="space-y-2 mb-6">
@@ -104,6 +109,15 @@ export default async function InterviewPage({
         </Suspense>
       </div>
     </div>
+  );
+}
+
+async function InterviewsBackLink({ params }: { params: InterviewParams }) {
+  const { jobinfoid } = await params;
+  return (
+    <BackLink href={`/app/job-infos/${jobinfoid}/interviews`}>
+      All Interviews
+    </BackLink>
   );
 }
 
