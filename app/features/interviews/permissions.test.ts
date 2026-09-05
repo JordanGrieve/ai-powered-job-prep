@@ -15,7 +15,7 @@ vi.mock("@/app/drizzle/db", () => ({
 import { db } from "@/app/drizzle/db";
 import { getCurrentUser } from "@/app/services/clerk/lib/getCurrentUser";
 import { hasPermission } from "@/app/services/clerk/lib/hasPermission";
-import { canCreateInterview } from "./permissions";
+import { canCreateInterview, PermissionCheckError } from "./permissions";
 
 const mockedHasPermission = vi.mocked(hasPermission);
 const mockedGetCurrentUser = vi.mocked(getCurrentUser);
@@ -76,18 +76,34 @@ describe("canCreateInterview", () => {
     await expect(canCreateInterview()).resolves.toBe(false);
   });
 
-  // Documents current behaviour rather than endorsing it. canCreateInterview
-  // uses bare Promise.reject() as control flow with a blanket .catch(() =>
-  // false), so a genuine fault (the count query throwing, auth() failing) is
-  // indistinguishable from a legitimate denial - and silently blocks a paying
-  // customer. If this test ever starts failing because the fault is being
-  // surfaced instead of swallowed, that is an improvement: update it.
-  it("swallows a failing count query and denies (known weakness)", async () => {
+  // This previously asserted the opposite - that a fault was swallowed into a
+  // silent `false`. That behaviour told PAYING customers they had hit their
+  // plan limit whenever Postgres blipped, and was indistinguishable in the
+  // logs from a real denial. A fault must now be distinguishable from a
+  // denial.
+  it("throws rather than denying when the count query fails", async () => {
     grant({ "1_interview": true });
     mockInterviewCount(() => {
       throw new Error("connection terminated unexpectedly");
     });
 
-    await expect(canCreateInterview()).resolves.toBe(false);
+    await expect(canCreateInterview()).rejects.toThrow(PermissionCheckError);
+  });
+
+  it("throws rather than denying when the entitlement lookup fails", async () => {
+    mockedHasPermission.mockRejectedValue(new Error("clerk unreachable"));
+    mockInterviewCount(0);
+
+    await expect(canCreateInterview()).rejects.toThrow(PermissionCheckError);
+  });
+
+  it("does not count rows when the plan is unlimited", async () => {
+    grant({ unlimited_interviews: true });
+    mockInterviewCount(0);
+
+    await expect(canCreateInterview()).resolves.toBe(true);
+    // Short-circuit: counting rows we are about to ignore is wasted work on
+    // an uncached query that runs on every interview-creation attempt.
+    expect(db.select).not.toHaveBeenCalled();
   });
 });

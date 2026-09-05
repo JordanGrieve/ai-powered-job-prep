@@ -5,7 +5,13 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { canCreateInterview } from "@/app/features/interviews/permissions";
 
 export default async function UpgradePage() {
-  const blocked = !(await canCreateInterview());
+  // This page must never fail - it is where people go to pay. If the check
+  // itself breaks, show the neutral "Plans" heading rather than either an
+  // error page or a wrong "you have hit your limit" warning.
+  const blocked = await canCreateInterview().then(
+    (allowed) => !allowed,
+    () => false,
+  );
 
   return (
     <div className="container py-4 max-w-6xl">

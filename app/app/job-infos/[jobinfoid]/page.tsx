@@ -136,8 +136,11 @@ export default async function JobInfoPage({
  * two of them also count rows.
  */
 async function GatedOptionCards({ jobInfoId }: { jobInfoId: string }) {
+  // On a failed check, fall back to "allowed". A wrong Upgrade badge tells a
+  // paying customer they need to pay again; a wrong open card just sends them
+  // to a feature page that re-checks and redirects properly.
   const [interviews, questions, resume] = await Promise.all([
-    canCreateInterview(),
+    canCreateInterview().catch(() => true),
     canCreateQuestion(),
     canRunResumeAnalysis(),
   ]);
