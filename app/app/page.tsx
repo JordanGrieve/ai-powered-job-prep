@@ -152,7 +152,10 @@ function NoJobInfos() {
       <p className="text-muted-foreground mb-8">
         Get started by adding your first job info!
       </p>
-      <Card>
+      {/* Unlike /job-infos/new and /edit, this screen has no `container
+          max-w-5xl` wrapper, so the card has to bound itself - otherwise the
+          form inside (w-full by design) stretches to the whole viewport. */}
+      <Card className="w-full max-w-3xl">
         <CardContent>
           <JobInfoForm />
         </CardContent>
