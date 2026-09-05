@@ -137,7 +137,12 @@ export async function generateRatedAnswerFeedback({
         content: `${jobContext(jobInfo)}\n\n<question>\n${question}\n</question>\n\n<answer>\n${answer}\n</answer>`,
       },
     ],
-    maxOutputTokens: 1024,
+    // Measured against the real model: a normal answer review costs 700-1300
+    // output tokens, and a longer answer pushes past 1300. The previous 1024
+    // truncated mid-JSON, which surfaces as an opaque "could not parse the
+    // response" rather than anything diagnosable. Headroom is cheap; a failed
+    // generation the user has to retry is not.
+    maxOutputTokens: 2500,
     timeoutMs: GENERATION_TIMEOUT_MS,
     boundary: "question-answer",
   });

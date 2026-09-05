@@ -1,4 +1,8 @@
-import { generateObject, type ModelMessage } from "ai";
+import {
+  generateObject,
+  NoObjectGeneratedError,
+  type ModelMessage,
+} from "ai";
 import { z } from "zod";
 import { google } from "./models/google";
 import { env } from "@/app/data/env/server";
@@ -90,22 +94,44 @@ export async function generateRatedFeedback({
 
     return { error: false, ...parsed.data };
   } catch (error) {
-    log.error("generation failed", error, {
-      ...context,
-      boundary,
-      model: env.GEMINI_MODEL,
-    });
-
+    const base = { ...context, boundary, model: env.GEMINI_MODEL };
     const message = error instanceof Error ? error.message : String(error);
+
     if (error instanceof Error && error.name === "TimeoutError") {
+      log.error("generation timed out", error, { ...base, timeoutMs });
       return { error: true, message: "That took too long. Please try again." };
     }
-    if (/quota|rate.?limit|429/i.test(message)) {
+
+    // generateObject throws NoObjectGeneratedError when the response is not
+    // parseable, and BY FAR the most common cause is hitting maxOutputTokens
+    // mid-JSON. The SDK's own message ("No object generated: could not parse
+    // the response") points at parsing and hides the real cause, which cost
+    // real debugging time - so name it explicitly in the log.
+    if (NoObjectGeneratedError.isInstance(error)) {
+      log.error("no object generated - likely truncated output", error, {
+        ...base,
+        maxOutputTokens,
+        finishReason: error.finishReason,
+        usage: error.usage,
+        textLength: error.text?.length,
+      });
+      return {
+        error: true,
+        message:
+          error.finishReason === "length"
+            ? "The response was cut short. Please try again."
+            : "The response came back malformed. Please try again.",
+      };
+    }
+    if (/quota|rate.?limit|429|high demand|overloaded/i.test(message)) {
+      log.error("provider unavailable", error, base);
       return {
         error: true,
         message: "The AI service is busy right now. Please try again shortly.",
       };
     }
+
+    log.error("generation failed", error, base);
     return { error: true, message: "Something went wrong. Please try again." };
   }
 }

@@ -12,7 +12,12 @@ import {
 const GENERATION_TIMEOUT_MS = 100_000;
 // The rubric asks for seven scored sections plus an overall summary; this is
 // generous for that while still bounding a runaway generation.
-const MAX_OUTPUT_TOKENS = 4096;
+// Seven scored sections, each quoting the transcript - by far the longest
+// output in the app. Measured against the real model: a single short answer
+// review alone costs ~1300 output tokens, so 4096 across seven sections was
+// optimistic. Truncation fails as an unparseable object rather than a clean
+// error, so the budget is deliberately generous.
+const MAX_OUTPUT_TOKENS = 8192;
 
 const log = createLogger("gemini");
 
