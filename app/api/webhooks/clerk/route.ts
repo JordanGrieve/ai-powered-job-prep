@@ -8,26 +8,11 @@ import {
 import { env } from "@/app/data/env/server";
 import type { WebhookEvent } from "@clerk/nextjs/server";
 import { createLogger } from "@/lib/logger";
+// Shared with onboarding's direct provisioning so whichever path creates the
+// row first, the resolved name is identical.
+import { resolveName } from "@/app/features/users/resolveName";
 
 const log = createLogger("clerk-webhook");
-
-/**
- * Clerk types first_name/last_name as `string | null`, so the previous
- * `${first_name} ${last_name}` template persisted the literal "null null"
- * into a notNull column for name-less accounts. That string then rendered as
- * the avatar initials and was sent to Gemini as the interviewee's name.
- */
-function resolveName(data: {
-  first_name?: string | null;
-  last_name?: string | null;
-  username?: string | null;
-  email: string;
-}) {
-  const full = [data.first_name, data.last_name].filter(Boolean).join(" ").trim();
-  if (full) return full;
-  if (data.username) return data.username;
-  return data.email.split("@")[0];
-}
 
 export async function POST(request: NextRequest) {
   let event: WebhookEvent;

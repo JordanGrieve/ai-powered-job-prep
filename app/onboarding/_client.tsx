@@ -3,7 +3,10 @@
 import { Loader2Icon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { isCurrentUserProvisioned } from "../features/users/actions";
+import {
+  isCurrentUserProvisioned,
+  provisionCurrentUserAction,
+} from "../features/users/actions";
 
 // The old 250ms poll issued ~240 requests/minute against the 50/min Arcjet
 // sliding window in proxy.ts, so it exhausted the caller's own budget and then
@@ -22,6 +25,28 @@ export function OnBoardingClient() {
     let timeoutId: ReturnType<typeof setTimeout>;
     let attempts = 0;
     let delay = INITIAL_DELAY_MS;
+
+    // Create the row ourselves before falling back to waiting for the webhook.
+    // This is what makes signup work with no inbound callback at all - locally,
+    // or in a deployment where the webhook endpoint or signing secret is not
+    // configured. Both paths upsert on the Clerk id, so a webhook arriving
+    // mid-flight is a no-op rather than a conflict.
+    async function provisionThenPoll() {
+      if (cancelled) return;
+
+      try {
+        if (await provisionCurrentUserAction()) {
+          if (!cancelled) router.replace("/app");
+          return;
+        }
+      } catch (error) {
+        console.error("[onboarding] provisioning failed", error);
+      }
+
+      // Provisioning did not succeed (Clerk unreachable, or the database is
+      // down). The webhook may still land, so keep polling.
+      if (!cancelled) void poll();
+    }
 
     async function poll() {
       if (cancelled) return;
@@ -47,7 +72,7 @@ export function OnBoardingClient() {
       timeoutId = setTimeout(poll, delay);
     }
 
-    timeoutId = setTimeout(poll, INITIAL_DELAY_MS);
+    void provisionThenPoll();
 
     return () => {
       cancelled = true;
