@@ -1,6 +1,6 @@
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Button } from "@/components/ui/button";
-import { SignInButton, SignedIn, SignedOut, UserButton } from "@clerk/nextjs";
+import { Show, SignInButton, UserButton } from "@clerk/nextjs";
 import { BrainCircuit, FileSlidersIcon, MicIcon, SpeechIcon } from "lucide-react";
 import Link from "next/link";
 import { PricingTable } from "./services/clerk/components/PricingTable";
@@ -38,7 +38,7 @@ export default function HomePage() {
           </div>
           <div className="flex items-center gap-2">
             <ThemeToggle />
-            <SignedOut>
+            <Show when="signed-out">
               {/* SignInButton wraps a single child - it does NOT go inside
                   <Button asChild>. Inverting these throws "You've passed
                   multiple children components to <SignInButton/>" at render.
@@ -47,13 +47,13 @@ export default function HomePage() {
               <SignInButton forceRedirectUrl="/onboarding">
                 <Button>Sign in</Button>
               </SignInButton>
-            </SignedOut>
-            <SignedIn>
+            </Show>
+            <Show when="signed-in">
               <Button asChild>
                 <Link href="/app">Go to dashboard</Link>
               </Button>
               <UserButton />
-            </SignedIn>
+            </Show>
           </div>
         </div>
       </header>
@@ -71,16 +71,16 @@ export default function HomePage() {
               you&apos;re chasing, then tells you — specifically — what to fix.
             </p>
             <div className="mt-10 flex items-center justify-center gap-3">
-              <SignedOut>
+              <Show when="signed-out">
                 <SignInButton forceRedirectUrl="/onboarding">
                   <Button size="lg">Start practising free</Button>
                 </SignInButton>
-              </SignedOut>
-              <SignedIn>
+              </Show>
+              <Show when="signed-in">
                 <Button size="lg" asChild>
                   <Link href="/app">Go to your dashboard</Link>
                 </Button>
-              </SignedIn>
+              </Show>
             </div>
           </div>
         </section>
@@ -128,18 +128,18 @@ export default function HomePage() {
             <BrainCircuit className="size-4" />
             <span>Land — AI Powered Job Prep</span>
           </div>
-          <SignedOut>
+          <Show when="signed-out">
             <SignInButton forceRedirectUrl="/onboarding">
               <button className="hover:text-foreground transition-colors">
                 Sign in
               </button>
             </SignInButton>
-          </SignedOut>
-          <SignedIn>
+          </Show>
+          <Show when="signed-in">
             <Link href="/app" className="hover:text-foreground transition-colors">
               Dashboard
             </Link>
-          </SignedIn>
+          </Show>
         </div>
       </footer>
     </div>
