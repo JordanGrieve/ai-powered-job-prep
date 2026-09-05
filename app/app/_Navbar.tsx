@@ -41,10 +41,68 @@ function NavAvatar({ userPromise }: { userPromise: Promise<NavUser> }) {
   return <UserAvatar user={user} />;
 }
 
-export function Navbar({ userPromise }: { userPromise: Promise<NavUser> }) {
-  const { openUserProfile, signOut } = useClerk();
+/**
+ * The only part of the navbar that reads URL data, isolated so it can sit
+ * behind its own Suspense boundary.
+ *
+ * Under `cacheComponents`, calling usePathname()/useParams() in a client
+ * component that is NOT inside a Suspense boundary fails the build with
+ * CLIENT_HOOK_DYNAMIC: the value is only known at request time, so it blocks
+ * prerendering of every route the navbar appears on. Suspending just this
+ * strip lets the rest of the shell - logo, theme toggle, avatar - prerender.
+ */
+function JobInfoNavLinks() {
   const { jobinfoid } = useParams();
   const pathName = usePathname();
+
+  if (typeof jobinfoid !== "string") return null;
+
+  return (
+    <>
+      {navLinks.map(({ name, href, Icon, ready }) => {
+        const hrefPath = `/app/job-infos/${jobinfoid}/${href}`;
+        const isActive = pathName === hrefPath;
+
+        if (!ready) {
+          return (
+            <Button
+              variant="ghost"
+              key={name}
+              disabled
+              title={`${name} is coming soon`}
+              className="max-sm:hidden"
+            >
+              <Icon />
+              {name}
+            </Button>
+          );
+        }
+
+        return (
+          <Button
+            variant={isActive ? "secondary" : "ghost"}
+            key={name}
+            asChild
+            className="cursor-pointer max-sm:hidden"
+          >
+            <Link
+              href={hrefPath}
+              className={`flex items-center gap-2 ${
+                isActive ? "text-primary" : "text-muted"
+              }`}
+            >
+              <Icon />
+              {name}
+            </Link>
+          </Button>
+        );
+      })}
+    </>
+  );
+}
+
+export function Navbar({ userPromise }: { userPromise: Promise<NavUser> }) {
+  const { openUserProfile, signOut } = useClerk();
 
   return (
     // The border spans the full viewport; the CONTENT sits in the same
@@ -58,45 +116,12 @@ export function Navbar({ userPromise }: { userPromise: Promise<NavUser> }) {
         </Link>
 
         <div className="flex items-center gap-2">
-          {typeof jobinfoid === "string" &&
-            navLinks.map(({ name, href, Icon, ready }) => {
-              const hrefPath = `/app/job-infos/${jobinfoid}/${href}`;
-              const isActive = pathName === hrefPath;
-
-              if (!ready) {
-                return (
-                  <Button
-                    variant="ghost"
-                    key={name}
-                    disabled
-                    title={`${name} is coming soon`}
-                    className="max-sm:hidden"
-                  >
-                    <Icon />
-                    {name}
-                  </Button>
-                );
-              }
-
-              return (
-                <Button
-                  variant={isActive ? "secondary" : "ghost"}
-                  key={name}
-                  asChild
-                  className="cursor-pointer max-sm:hidden"
-                >
-                  <Link
-                    href={hrefPath}
-                    className={`flex items-center gap-2 ${
-                      isActive ? "text-primary" : "text-muted"
-                    }`}
-                  >
-                    <Icon />
-                    {name}
-                  </Link>
-                </Button>
-              );
-            })}
+          {/* Suspended because it reads the URL - see JobInfoNavLinks. The
+              fallback is null: these links are absent on most routes anyway,
+              so a skeleton would flash in where nothing belongs. */}
+          <Suspense fallback={null}>
+            <JobInfoNavLinks />
+          </Suspense>
 
           <ThemeToggle />
           <DropdownMenu>
