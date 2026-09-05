@@ -59,23 +59,24 @@ jobs:
 
       - name: Apply Drizzle migrations
         env:
-          DB_HOST: ${{ secrets.DB_HOST }}
-          DB_PORT: ${{ secrets.DB_PORT }}
-          DB_USER: ${{ secrets.DB_USER }}
-          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
-          DB_NAME: ${{ secrets.DB_NAME }}
+          # One secret, not five. A hosted provider (Neon, Supabase, Vercel
+          # Postgres) hands you a single connection string, and the env schema
+          # now accepts it directly - decomposing it into DB_* parts would
+          # silently drop the sslmode and channel_binding parameters those
+          # providers require.
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
         # drizzle.config.ts imports the whole server env schema, so the
         # non-database variables must still be present. .env.example supplies
         # placeholders for those; dotenv does not overwrite variables already
-        # set in the environment, so the real DB_* secrets above win.
+        # set in the environment, so the real DATABASE_URL above wins.
         #
         # The guard matters: without it, an unconfigured repo falls back to the
         # .env.example placeholders, dials localhost:5432 on the runner, and
         # fails - putting a red X on main that means nothing. The `secrets`
         # context is not available in a job-level `if`, so the check lives here.
         run: |
-          if [ -z "$DB_HOST" ]; then
-            echo "::notice title=Migrations skipped::No DB_* secrets are configured on this repository, so there is no database to migrate. Add DB_HOST, DB_PORT, DB_USER, DB_PASSWORD and DB_NAME to enable this step."
+          if [ -z "$DATABASE_URL" ]; then
+            echo "::notice title=Migrations skipped::No DATABASE_URL secret is configured on this repository, so there is no database to migrate. Add it under Settings -> Secrets and variables -> Actions to enable this step."
             exit 0
           fi
           cp .env.example .env
