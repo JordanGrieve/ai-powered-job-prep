@@ -7,6 +7,11 @@ const isPublicRoute = createRouteMatcher([
   "/sign-in(.*)",
   "/sign-up(.*)",
   "/api/webhooks/(.*)",
+  // Must be readable WITHOUT an account. Someone deciding whether to hand us
+  // their CV cannot be required to sign up first in order to find out what
+  // happens to it, and a deletion request has to be possible after the
+  // account is gone.
+  "/privacy",
 ]);
 
 /**

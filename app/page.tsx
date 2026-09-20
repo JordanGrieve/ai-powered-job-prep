@@ -167,19 +167,29 @@ export default function HomePage() {
             <BrainCircuit className="size-4" />
             <span>Land — AI Powered Job Prep</span>
           </div>
-          <Suspense fallback={<FooterSignIn />}>
-            <Show when="signed-out">
-              <FooterSignIn />
-            </Show>
-            <Show when="signed-in">
-              <Link
-                href="/app"
-                className="hover:text-foreground transition-colors"
-              >
-                Dashboard
-              </Link>
-            </Show>
-          </Suspense>
+          <div className="flex items-center gap-6">
+            {/* Users upload CVs and speak to a third-party voice model, so the
+                policy has to be reachable without signing in. */}
+            <Link
+              href="/privacy"
+              className="hover:text-foreground transition-colors"
+            >
+              Privacy
+            </Link>
+            <Suspense fallback={<FooterSignIn />}>
+              <Show when="signed-out">
+                <FooterSignIn />
+              </Show>
+              <Show when="signed-in">
+                <Link
+                  href="/app"
+                  className="hover:text-foreground transition-colors"
+                >
+                  Dashboard
+                </Link>
+              </Show>
+            </Suspense>
+          </div>
         </div>
       </footer>
     </div>
