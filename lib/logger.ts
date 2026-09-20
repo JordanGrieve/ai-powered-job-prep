@@ -17,10 +17,23 @@ export type LogContext = Record<string, unknown>;
 
 const SENSITIVE = /^(.*(key|secret|token|password|authorization).*)$/i;
 
+/**
+ * Token USAGE counts are not credentials, but they match /token/ and were
+ * being redacted - so the per-generation cost data ratedFeedback deliberately
+ * logs came out as "[redacted]" on every call and was never usable.
+ *
+ * An explicit allowlist rather than a looser SENSITIVE pattern: anything not
+ * named here still redacts, so a genuine `apiToken` cannot slip through by
+ * accident.
+ */
+const NOT_SENSITIVE =
+  /^(input|output|total|reasoning|thoughts|cached|maxOutput)Tokens$/i;
+
 function redact(context: LogContext): LogContext {
   const out: LogContext = {};
   for (const [key, value] of Object.entries(context)) {
-    out[key] = SENSITIVE.test(key) ? "[redacted]" : value;
+    const sensitive = SENSITIVE.test(key) && !NOT_SENSITIVE.test(key);
+    out[key] = sensitive ? "[redacted]" : value;
   }
   return out;
 }
