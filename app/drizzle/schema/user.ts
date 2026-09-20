@@ -5,7 +5,20 @@ import { jobInfoTable } from "./jobInfo";
 
 export const UserTable = pgTable("users", {
   id: varchar().primaryKey(),
-  email: varchar().notNull().unique(),
+  // NOT unique, deliberately. The identity here is the Clerk id above; email
+  // is a denormalised copy of what Clerk holds, kept so the app can show and
+  // contact the user without a round trip.
+  //
+  // It used to be unique, and that locked real people out. A leftover row -
+  // from a failed user.deleted webhook, a Clerk instance being replaced, or a
+  // user deleting their account and coming back - still held the address. The
+  // next sign-up with that email hit users_email_unique, provisioning failed,
+  // and /onboarding spun forever with nothing to explain it and no way for
+  // the user to recover. That happened three times during setup.
+  //
+  // Clerk already enforces one account per email. Duplicating that rule here
+  // bought nothing and turned a stale row into a permanent lockout.
+  email: varchar().notNull(),
   name: varchar().notNull(),
   imageUrl: varchar().notNull(),
   // Observability and messaging ONLY. auth().has() remains the authoritative
