@@ -9,7 +9,16 @@ const GENERATION_TIMEOUT_MS = 90_000;
 // Five sections including three-to-five before/after rewrite pairs, which are
 // verbose. Raised alongside the other two after truncation was found to fail
 // as an unparseable object rather than a clean error.
-const MAX_OUTPUT_TOKENS = 5000;
+//
+// Raised again 2026-09-20. gemini-2.5-flash is a thinking model and its
+// reasoning tokens are charged against this same budget, so the share left
+// for visible output varies run to run: on 5000 the same CV produced 4126
+// characters on one call and 842 - truncated mid-sentence, two of five
+// sections - on the next. The ceiling was not the problem so much as the
+// headroom. Truncation is now also caught (see generateRatedFeedback), but
+// catching it only turns a silent half-answer into a retry; the budget is
+// what stops it happening.
+const MAX_OUTPUT_TOKENS = 12_000;
 
 /**
  * Gemini accepts these inline. DOCX is NOT on the list - the file has to be
@@ -44,11 +53,13 @@ Three to five bullets, each quoting or naming the specific line you are referrin
 The gaps a recruiter for THIS role would notice. Be specific and concrete.
 
 ## Concrete rewrites
-Three to five before/after pairs. Quote the candidate's actual line, then give a stronger version. Prefer measurable outcomes over adjectives.
+Three to five before/after pairs. Quote the candidate's actual line, then give a stronger version.
+
+Strong bullets lead with measurable impact - but you do not know this candidate's numbers. Where a figure would strengthen the line and the resume does not supply one, write a bracketed placeholder for them to fill in: [N], [X]%, [duration]. Never state a specific metric, team size, or score the resume does not contain.
 
 Rules:
 - Judge against the supplied job description, not a generic ideal.
-- Never invent experience the candidate does not claim.
+- Never invent experience the candidate does not claim. This applies to the rewrites too: a rewrite is a template for them to complete, not a claim they can paste unchanged. They will be asked about it in the interview this feedback is preparing them for, and a fabricated number is worse for them than a weak bullet.
 - Be direct. Vague encouragement is not useful to someone applying for a job.`;
 
 export async function generateAiResumeAnalysis({

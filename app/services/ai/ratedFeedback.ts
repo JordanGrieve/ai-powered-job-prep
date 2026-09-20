@@ -78,6 +78,31 @@ export async function generateRatedFeedback({
       finishReason,
     });
 
+    // A truncated response does NOT always fail to parse. Gemini can stop on
+    // the token limit having already closed the JSON, leaving valid output
+    // whose feedback string ends mid-sentence - observed on gemini-2.5-flash,
+    // which returned 842 usable characters and two of five sections with no
+    // error at all. The catch block below only sees the cases where the JSON
+    // itself is broken, so finishReason has to be checked here too or a half
+    // an analysis ships to the user as if it were complete.
+    if (finishReason === "length") {
+      log.error("output truncated on the token limit", undefined, {
+        ...context,
+        boundary,
+        model: env.GEMINI_MODEL,
+        maxOutputTokens,
+        outputTokens: usage?.outputTokens,
+        feedbackLength:
+          typeof (object as RatedFeedback)?.feedback === "string"
+            ? (object as RatedFeedback).feedback.length
+            : undefined,
+      });
+      return {
+        error: true,
+        message: "The response was cut short. Please try again.",
+      };
+    }
+
     const parsed = ratedFeedbackSchema.safeParse(object);
     if (!parsed.success || parsed.data.feedback.trim().length === 0) {
       log.error("unusable generation", undefined, {
