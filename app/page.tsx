@@ -10,6 +10,7 @@ import {
 import Link from "next/link";
 import { Suspense } from "react";
 import { PricingTable } from "./services/clerk/components/PricingTable";
+import { MAIN_CONTENT_ID } from "@/components/SkipToContent";
 
 const steps = [
   {
@@ -99,7 +100,7 @@ export default function HomePage() {
         </div>
       </header>
 
-      <main className="flex-1">
+      <main id={MAIN_CONTENT_ID} className="flex-1">
         {/* max-w-3xl goes on an inner div, not the section - putting it on the
             container would override its max-width and change the gutter. */}
         <section className="container py-20 md:py-28">

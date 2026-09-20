@@ -87,8 +87,14 @@ function JobInfoNavLinks() {
           >
             <Link
               href={hrefPath}
+              // text-muted, NOT text-muted-foreground, is what this used to
+              // say. --muted is a BACKGROUND token - a near-background surface
+              // colour - so the inactive links were painted in almost exactly
+              // the page background: 1.13:1 in dark, 1.14:1 in light, and the
+              // colour inverted with the theme because the token does. The
+              // whole primary nav was effectively invisible in both themes.
               className={`flex items-center gap-2 ${
-                isActive ? "text-primary" : "text-muted"
+                isActive ? "text-primary" : "text-muted-foreground"
               }`}
             >
               <Icon />

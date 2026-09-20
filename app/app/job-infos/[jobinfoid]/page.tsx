@@ -23,6 +23,12 @@ import { Suspense } from "react";
 import { canCreateInterview } from "@/app/features/interviews/permissions";
 import { canCreateQuestion } from "@/app/features/questions/permissions";
 import { canRunResumeAnalysis } from "@/app/features/resume/permissions";
+import type { Metadata } from "next";
+
+// The root layout applies a "%s · Land" template. Without this every
+// signed-in page shared one generic title, which is WCAG 2.4.2 and makes
+// browser tabs and history entries indistinguishable.
+export const metadata: Metadata = { title: "Job description" };
 
 /**
  * `gate` names the entitlement each card needs. A card the user cannot use

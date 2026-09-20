@@ -1,6 +1,7 @@
 import { getCurrentUser } from "../services/clerk/lib/getCurrentUser";
 import { ReactNode } from "react";
 import { Navbar } from "./_Navbar";
+import { MAIN_CONTENT_ID } from "@/components/SkipToContent";
 
 export default function AppLayout({ children }: { children: ReactNode }) {
   // Deliberately NOT awaited. Awaiting here blocked every Suspense boundary
@@ -18,7 +19,11 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   return (
     <>
       <Navbar userPromise={userPromise} />
-      {children}
+      {/* The whole signed-in app had no <main> at all, so there was no
+          landmark to skip to and nothing for a screen reader to jump to -
+          every page started at the navbar. The id is the skip link's target;
+          see SkipToContent in the root layout. */}
+      <main id={MAIN_CONTENT_ID}>{children}</main>
     </>
   );
 }

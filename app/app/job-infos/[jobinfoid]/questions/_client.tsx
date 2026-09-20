@@ -7,6 +7,7 @@ import { MarkdownRenderer } from "@/components/MarkdownRenderer";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
 import { LoadingSwap } from "@/components/ui/loading-swap";
 import {
   Select,
@@ -106,11 +107,15 @@ export function QuestionsClient({
     <div className="grid gap-6 lg:grid-cols-[280px_1fr] w-full">
       <aside className="space-y-4">
         <div className="space-y-2">
+          {/* Without this the trigger's only accessible name was its own
+              current value, so it announced as "Mid-level, combobox" and gave
+              no clue what it controlled. */}
+          <Label htmlFor="question-difficulty">Difficulty</Label>
           <Select
             value={difficulty}
             onValueChange={(v) => setDifficulty(v as QuestionDifficulty)}
           >
-            <SelectTrigger className="w-full">
+            <SelectTrigger id="question-difficulty" className="w-full">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
