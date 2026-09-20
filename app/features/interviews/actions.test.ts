@@ -28,6 +28,7 @@ vi.mock("next/cache", () => ({
   cacheTag: vi.fn(),
   cacheLife: vi.fn(),
   revalidateTag: vi.fn(),
+  revalidatePath: vi.fn(),
 }));
 
 // vi.mock is hoisted above const declarations, so the shared spy has to be

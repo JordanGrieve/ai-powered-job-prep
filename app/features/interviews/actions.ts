@@ -5,7 +5,7 @@ import { getJobInfoIdTag } from "../jobInfos/dbCache";
 import { db } from "@/app/drizzle/db";
 import { jobInfoTable } from "@/app/drizzle/schema/jobInfo";
 import { and, eq } from "drizzle-orm";
-import { cacheTag, revalidateTag } from "next/cache";
+import { cacheTag, revalidatePath, revalidateTag } from "next/cache";
 import { insertInterview, updateInterview as updateInterviewDb } from "./db";
 import { getInterviewIdTag } from "./dbCache";
 import { InterviewTable } from "@/app/drizzle/schema/interview";
@@ -235,6 +235,20 @@ export async function generateInterviewFeedback(interviewId: string) {
   if (updated == null) {
     return { error: true as const, message: "Interview not found" };
   }
+
+  // revalidateTag alone was not enough. It marks the "use cache" entry stale,
+  // but the router.refresh() the client fires the moment this action resolves
+  // races that invalidation and is served the PRE-write value - so the page
+  // re-rendered still showing "Generate Feedback" while 5307 characters of
+  // feedback sat in the database. The next navigation was fresh, which is what
+  // made it look like the write had silently failed rather than like a cache
+  // bug, and is why this got run twice at roughly 2p and 27s a time.
+  //
+  // revalidatePath also drops the client Router Cache entry for this route, so
+  // the refresh cannot be answered from a stale payload.
+  revalidatePath(
+    `/app/job-infos/${interview.jobInfo.id}/interviews/${interviewId}`,
+  );
 
   return { error: false as const };
 }
