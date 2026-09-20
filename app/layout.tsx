@@ -4,6 +4,7 @@ import "./globals.css";
 import { ClerkProvider } from "./services/clerk/components/ClerkProvider";
 import { ThemeProvider } from "next-themes";
 import { Toaster } from "@/components/ui/sonner";
+import { SkipToContent } from "@/components/SkipToContent";
 
 const outfitSans = Outfit({
   variable: "--font-outfit-sans",
@@ -30,6 +31,9 @@ export default function RootLayout({
     // supported.
     <html lang="en" suppressHydrationWarning>
       <body className={`${outfitSans.variable} antialiased font-sans`}>
+        {/* First focusable element in the document, ahead of every provider,
+            so one Tab from page load reaches it. */}
+        <SkipToContent />
         <ClerkProvider>
           <ThemeProvider
             attribute="class"

@@ -1,6 +1,13 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "../services/clerk/lib/getCurrentUser";
 import { OnBoardingClient } from "./_client";
+import { MAIN_CONTENT_ID } from "@/components/SkipToContent";
+import type { Metadata } from "next";
+
+// The root layout applies a "%s · Land" template. Without this every
+// signed-in page shared one generic title, which is WCAG 2.4.2 and makes
+// browser tabs and history entries indistinguishable.
+export const metadata: Metadata = { title: "Creating your account" };
 
 /**
  * Deliberately opts out of instant prerendering rather than suspending.
@@ -26,9 +33,9 @@ export default async function OnboardingPage() {
   // not depend on the webhook, and provisionCurrentUserAction for why the write
   // cannot happen in this render.
   return (
-    <div className="container flex flex-col items-center justify-center h-screen gap-4">
+    <main id={MAIN_CONTENT_ID} className="container flex flex-col items-center justify-center h-screen gap-4">
       <h1 className="text-4xl">Creating your account</h1>
       <OnBoardingClient />
-    </div>
+    </main>
   );
 }

@@ -13,6 +13,12 @@ import { env } from "@/app/data/env/server";
 import { VoiceProvider } from "@humeai/voice-react";
 import { StartCall } from "./_StartCall";
 import { canCreateInterview } from "@/app/features/interviews/permissions";
+import type { Metadata } from "next";
+
+// The root layout applies a "%s · Land" template. Without this every
+// signed-in page shared one generic title, which is WCAG 2.4.2 and makes
+// browser tabs and history entries indistinguishable.
+export const metadata: Metadata = { title: "New interview" };
 
 export default function NewInterviewPage({
   params,
@@ -55,6 +61,13 @@ async function SuspendedComponent({ params }: { params: JobInfoParams }) {
 
   return (
     <VoiceProvider>
+      {/* This page had no heading at all in any of its three states, so
+          screen reader users landed on it with nothing to orient by.
+          Rendered here rather than inside StartCall because that component
+          returns a different tree per connection state and would otherwise
+          need the same heading in each one. sr-only because the visual
+          design deliberately leads with the Start button. */}
+      <h1 className="sr-only">Practice interview</h1>
       <StartCall jobInfo={jobInfo} accessToken={accessToken} user={user} />
     </VoiceProvider>
   );

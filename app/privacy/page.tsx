@@ -1,6 +1,7 @@
 import { BrainCircuit } from "lucide-react";
 import Link from "next/link";
 import type { Metadata } from "next";
+import { MAIN_CONTENT_ID } from "@/components/SkipToContent";
 
 export const metadata: Metadata = {
   // The root layout applies a "%s · Land" template, so this must not repeat
@@ -37,7 +38,7 @@ export default function PrivacyPage() {
         </div>
       </header>
 
-      <main className="flex-1">
+      <main id={MAIN_CONTENT_ID} className="flex-1">
         <div className="container py-12 md:py-16">
           <div className="max-w-3xl mx-auto prose prose-neutral dark:prose-invert font-sans">
             <h1>Privacy Policy</h1>

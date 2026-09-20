@@ -100,14 +100,23 @@
   --secondary: oklch(0.9461 0 0);
   --secondary-foreground: oklch(0.2046 0 0);
   --muted: oklch(0.9461 0 0);
-  --muted-foreground: oklch(0.5382 0 0);
+  /* Was 0.5382, which gave 4.36:1 against --muted (0.9461) and so failed AA
+     for any muted text sitting on a muted surface - cards, badges, table
+     rows. It passed on --background only because that surface is lighter,
+     which is why nothing on the site had surfaced it yet. 0.528 clears both:
+     4.55:1 on muted, 5.19:1 on background. */
+  --muted-foreground: oklch(0.528 0 0);
   --accent: oklch(0.9461 0 0);
   --accent-foreground: oklch(0.2478 0 0);
   --destructive: oklch(0.6254 0.2125 33.0722);
   --warning: oklch(0.8783 0.1853 85.3174);
   /* Green, matching the existing ring hue (~158) so it reads as part of the
      palette rather than a bolted-on Tailwind green. */
-  --success: oklch(0.6237 0.1402 158.0);
+  /* Darkened from 0.6237: the near-white --success-foreground on it was only
+     3.21:1. --success is only ever a background (bg-success on Badge, and
+     border-success/40) and never a text colour, so dropping the lightness
+     costs nothing and takes the badge to 4.63:1. */
+  --success: oklch(0.53 0.1402 158.0);
   --success-foreground: oklch(0.9851 0 0);
   --border: oklch(0.9037 0 0);
   --input: oklch(0.9731 0 0);
@@ -161,7 +170,12 @@
   --popover: oklch(0.2603 0 0);
   --popover-foreground: oklch(0.7348 0 0);
   --primary: oklch(0.5065 0.1228 156.039);
-  --primary-foreground: oklch(0.9213 0.0135 167.1556);
+  /* Was 0.9213, giving 4.37:1 on --primary - just under AA, and this is the
+     token behind every primary button in the app, so one rounding error was
+     failing "Sign in", "Start practising free", "Subscribe" and the rest.
+     Lightening the text rather than darkening --primary keeps the brand
+     green exactly as it is. 4.78:1. */
+  --primary-foreground: oklch(0.95 0.0135 167.1556);
   --secondary: oklch(0.2603 0 0);
   --secondary-foreground: oklch(0.9851 0 0);
   --muted: oklch(0.2393 0 0);

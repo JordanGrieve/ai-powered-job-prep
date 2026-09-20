@@ -26,6 +26,12 @@ import { Loader2Icon } from "lucide-react";
 import { cacheTag } from "next/cache";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
+import type { Metadata } from "next";
+
+// The root layout applies a "%s · Land" template. Without this every
+// signed-in page shared one generic title, which is WCAG 2.4.2 and makes
+// browser tabs and history entries indistinguishable.
+export const metadata: Metadata = { title: "Interview" };
 
 // Feedback generation runs a long-context Gemini call from this segment. The
 // AI service aborts itself at 100s, comfortably inside this budget.

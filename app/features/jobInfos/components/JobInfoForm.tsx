@@ -153,11 +153,17 @@ export function JobInfoForm({
 
         <FormDescription>Be as specific as possible.</FormDescription>
 
-        <Button
-          disabled={!form.formState.isValid}
-          type="submit"
-          className="w-full"
-        >
+        {/* Deliberately NOT disabled until valid. A disabled <button> is
+            removed from the tab order entirely, so a keyboard or screen
+            reader user on a blank form never reached this control and was
+            told nothing about what was missing - the form simply refused to
+            go anywhere, silently.
+
+            Submitting while invalid is the accessible path: react-hook-form
+            renders the messages, FormMessage wires them into each field's
+            aria-describedby, aria-invalid flips, and focus moves to the first
+            offending field. All of that already worked and was unreachable. */}
+        <Button type="submit" className="w-full">
           <LoadingSwap isLoading={form.formState.isSubmitting}>
             Save job information
           </LoadingSwap>

@@ -4,6 +4,12 @@ import { AlertTriangle } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { canCreateInterview } from "@/app/features/interviews/permissions";
 import { Suspense } from "react";
+import type { Metadata } from "next";
+
+// The root layout applies a "%s · Land" template. Without this every
+// signed-in page shared one generic title, which is WCAG 2.4.2 and makes
+// browser tabs and history entries indistinguishable.
+export const metadata: Metadata = { title: "Plans" };
 
 export default function UpgradePage() {
   return (

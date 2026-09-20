@@ -16,6 +16,12 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import type { JobInfoParams } from "@/app/app/job-infos/[jobinfoid]/params";
 import { QuestionsClient } from "./_client";
+import type { Metadata } from "next";
+
+// The root layout applies a "%s · Land" template. Without this every
+// signed-in page shared one generic title, which is WCAG 2.4.2 and makes
+// browser tabs and history entries indistinguishable.
+export const metadata: Metadata = { title: "Practice questions" };
 
 // Question generation and answer review are Gemini calls made from this
 // segment; each self-aborts at 60s.
