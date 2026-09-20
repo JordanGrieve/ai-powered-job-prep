@@ -80,8 +80,10 @@ Nice to have:
 describe("resume analysis against a fabricated CV", () => {
   // Skipped unless explicitly asked for. It spends real Gemini credit on every
   // run, so it must not ride along with `npm run test:integration`:
+  // Only the exact value "1" opts in - "0" and "false" are truthy strings and
+  // would otherwise have spent credit while looking like they disabled it.
   //   RUN_MANUAL=1 npm run test:integration -- resume.manual
-  it.skipIf(!process.env.RUN_MANUAL)("produces a rated, structured critique", async () => {
+  it.skipIf(process.env.RUN_MANUAL !== "1")("produces a rated, structured critique", async () => {
     const started = Date.now();
 
     const result = await generateAiResumeAnalysis({
