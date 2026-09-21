@@ -6,7 +6,7 @@ import { jobInfoTable } from "@/app/drizzle/schema/jobInfo";
 import { QuestionTable } from "@/app/drizzle/schema/question";
 import { questionDifficulties } from "@/app/drizzle/schema/question";
 import { and, asc, eq } from "drizzle-orm";
-import { cacheTag } from "next/cache";
+import { cacheTag, revalidatePath } from "next/cache";
 import { getJobInfoIdTag } from "../jobInfos/dbCache";
 import { getQuestionJobInfoTag } from "./dbCache";
 import { insertQuestion, updateQuestion } from "./db";
@@ -85,6 +85,16 @@ export async function createQuestion({
     difficulty: parsedDifficulty.data,
   });
 
+  // insertQuestion revalidates the "use cache" tags, but that alone leaves the
+  // client Router Cache holding the pre-write RSC payload for this route - so
+  // the router.refresh() the client fires next is answered with the OLD server
+  // render. That is what pinned the usage counter at its first-load value while
+  // questions were being created behind it: the page read "1 of 5 questions
+  // used" with five rows in the table, and `canGenerate` stayed true past the
+  // limit, so the button kept offering a generation the action would refuse.
+  // Same failure and same fix as the interview feedback button (see #18).
+  revalidatePath(`/app/job-infos/${parsedId.data}/questions`);
+
   return { error: false, id: question.id, text: generated.text };
 }
 
@@ -135,6 +145,12 @@ export async function reviewAnswer({
   if (saved == null) {
     return { error: true, message: "Question not found" };
   }
+
+  // Answering does not change the usage count, but it does change what the
+  // server renders for this question (stored answer, feedback and rating), and
+  // the progress view reads answeredAt. Drop the route's cached payload for the
+  // same reason as above.
+  revalidatePath(`/app/job-infos/${question.jobId}/questions`);
 
   return { error: false, feedback: generated.feedback, rating: generated.rating };
 }
