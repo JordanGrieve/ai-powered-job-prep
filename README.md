@@ -1,6 +1,6 @@
-# Land — AI Powered Job Prep
+# Callback — AI Powered Job Prep
 
-Land helps candidates prepare for a specific job. You paste in a job
+Callback helps candidates prepare for a specific job. You paste in a job
 description, run a live **voice** mock interview against an AI interviewer that
 asks follow-ups based on that role, and then get written, scored feedback on how
 you did.

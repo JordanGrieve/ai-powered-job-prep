@@ -4,11 +4,11 @@ import type { Metadata } from "next";
 import { MAIN_CONTENT_ID } from "@/components/SkipToContent";
 
 export const metadata: Metadata = {
-  // The root layout applies a "%s · Land" template, so this must not repeat
-  // the app name or the tab reads "Privacy Policy — Land · Land".
+  // The root layout applies a "%s · Callback" template, so this must not repeat
+  // the app name or the tab reads "Privacy Policy — Callback · Callback".
   title: "Privacy Policy",
   description:
-    "What Land collects, what it deliberately does not store, and who it shares data with.",
+    "What Callback collects, what it deliberately does not store, and who it shares data with.",
 };
 
 /**
@@ -33,7 +33,7 @@ export default function PrivacyPage() {
         <div className="container h-full flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2">
             <BrainCircuit className="size-6 text-primary" />
-            <span className="text-lg font-semibold">Land</span>
+            <span className="text-lg font-semibold">Callback</span>
           </Link>
         </div>
       </header>
@@ -47,7 +47,7 @@ export default function PrivacyPage() {
             </p>
 
             <p>
-              Land is a practice tool. You give it a job description, and it
+              Callback is a practice tool. You give it a job description, and it
               runs mock interviews, generates practice questions and reviews
               your CV against that specific role. Doing that means handling
               some genuinely personal information, so this page sets out
@@ -246,7 +246,7 @@ export default function PrivacyPage() {
         <div className="container py-8 flex items-center justify-between gap-4 text-sm text-muted-foreground">
           <div className="flex items-center gap-2">
             <BrainCircuit className="size-4" />
-            <span>Land — AI Powered Job Prep</span>
+            <span>Callback — AI Powered Job Prep</span>
           </div>
           <Link href="/" className="hover:text-foreground transition-colors">
             Home

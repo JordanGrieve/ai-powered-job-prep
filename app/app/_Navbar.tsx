@@ -118,7 +118,7 @@ export function Navbar({ userPromise }: { userPromise: Promise<NavUser> }) {
       <div className="container h-full flex items-center justify-between">
         <Link href="/app" className="flex items-center gap-2">
           <BrainCircuit className="size-6 text-primary" />
-          <span className="text-lg font-semibold">Land</span>
+          <span className="text-lg font-semibold">Callback</span>
         </Link>
 
         <div className="flex items-center gap-2">

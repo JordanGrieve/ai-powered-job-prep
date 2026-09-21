@@ -3,7 +3,7 @@ import { BackLink } from "@/components/BackLink";
 import { Card, CardContent } from "@/components/ui/card";
 import type { Metadata } from "next";
 
-// The root layout applies a "%s · Land" template. Without this every
+// The root layout applies a "%s · Callback" template. Without this every
 // signed-in page shared one generic title, which is WCAG 2.4.2 and makes
 // browser tabs and history entries indistinguishable.
 export const metadata: Metadata = { title: "New job description" };
