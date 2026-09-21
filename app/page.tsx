@@ -81,7 +81,7 @@ export default function HomePage() {
         <div className="container h-full flex items-center justify-between">
           <div className="flex items-center gap-2">
             <BrainCircuit className="size-6 text-primary" />
-            <span className="text-lg font-semibold">Land</span>
+            <span className="text-lg font-semibold">Callback</span>
           </div>
           <div className="flex items-center gap-2">
             <ThemeToggle />
@@ -109,7 +109,7 @@ export default function HomePage() {
               Practise the interview before it counts
             </h1>
             <p className="mt-6 text-lg text-muted-foreground text-balance">
-              Land runs a live voice mock interview against the exact job
+              Callback runs a live voice mock interview against the exact job
               you&apos;re chasing, then tells you — specifically — what to fix.
             </p>
             <div className="mt-10 flex items-center justify-center gap-3">
@@ -166,7 +166,7 @@ export default function HomePage() {
         <div className="container py-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-muted-foreground">
           <div className="flex items-center gap-2">
             <BrainCircuit className="size-4" />
-            <span>Land — AI Powered Job Prep</span>
+            <span>Callback — AI Powered Job Prep</span>
           </div>
           <div className="flex items-center gap-6">
             {/* Users upload CVs and speak to a third-party voice model, so the
