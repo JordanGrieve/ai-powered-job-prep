@@ -48,6 +48,9 @@ vi.mock("next/cache", () => ({
   cacheTag: vi.fn(),
   cacheLife: vi.fn(),
   revalidateTag: vi.fn(),
+  // createQuestion and reviewAnswer call this to drop the route's Router Cache
+  // entry; without it in the mock the module throws on import.
+  revalidatePath: vi.fn(),
 }));
 
 import { db } from "@/app/drizzle/db";

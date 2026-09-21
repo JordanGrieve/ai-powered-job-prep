@@ -19,6 +19,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { errorToast } from "@/lib/errorToast";
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 
 export type PracticeQuestion = {
   id: string;
@@ -48,6 +49,11 @@ export function QuestionsClient({
   const [draft, setDraft] = useState("");
   const [generating, startGenerating] = useTransition();
   const [reviewing, startReviewing] = useTransition();
+  // `canGenerate` and the usage counter are both rendered by the server
+  // component and passed down once. Without a refresh after each write they
+  // keep their first-load values for the life of the page, so the counter
+  // under-reports and the generate button stays enabled past the plan limit.
+  const router = useRouter();
 
   const active = questions.find((q) => q.id === activeId) ?? null;
   // An answered question shows its stored answer; an unanswered one shows the
@@ -72,6 +78,11 @@ export function QuestionsClient({
         setQuestions((prev) => [...prev, question]);
         setActiveId(question.id);
         setDraft("");
+        // Re-render the server component so the usage counter and canGenerate
+        // reflect the row that was just written. The action calls
+        // revalidatePath for this route first, so this refresh cannot be
+        // answered from the stale Router Cache entry.
+        router.refresh();
       } catch (error) {
         console.error("[questions] generation threw", error);
         errorToast("Something went wrong. Please try again.");
@@ -96,6 +107,7 @@ export function QuestionsClient({
           ),
         );
         setDraft("");
+        router.refresh();
       } catch (error) {
         console.error("[questions] review threw", error);
         errorToast("Something went wrong. Please try again.");
