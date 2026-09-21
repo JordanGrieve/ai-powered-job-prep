@@ -172,6 +172,29 @@ almost certainly why.
 
 ## Deployment notes
 
+- **Preview deployments are disabled on purpose.** `vercel.json` sets an
+  `ignoreCommand` that builds only when `VERCEL_ENV=production`; every other
+  environment exits 0, which tells Vercel to skip the build.
+
+  The Preview environment has never had the six secrets the app validates at
+  module load (`ARCJET_KEY`, `CLERK_SECRET_KEY`,
+  `CLERK_WEBHOOK_SIGNING_SECRET`, `HUME_API_KEY`, `HUME_SECRET_KEY`,
+  `GEMINI_API_KEY`), so every preview build has failed in
+  `app/data/env/server.ts` — a red check on every PR that says nothing about
+  the code. Production has always been healthy.
+
+  Copying the production values across would be the obvious fix and the wrong
+  one: preview URLs are publicly reachable, so it would hand every PR preview
+  the production `DATABASE_URL` and production Clerk keys — and a Clerk
+  production instance is domain-bound, so it would not work on a
+  `*.vercel.app` host anyway.
+
+  Nothing is lost. `verify` in CI runs typecheck, lint, the unit tests and a
+  full production build on every PR, which is what was actually gating merges.
+  To re-enable previews, create a Clerk **development** instance and a
+  separate branch database, add their values to the Preview environment, then
+  delete `vercel.json`.
+
 - `next.config.ts` still uses `experimental.useCache`, which is deprecated on
   16.3.x. Migrating to the top-level `cacheComponents` flag is a real
   prerendering migration, not a rename — it is tracked separately.
