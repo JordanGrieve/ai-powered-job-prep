@@ -63,6 +63,38 @@ const isMetadataRoute = createRouteMatcher([
   "/opengraph-image(.*)",
 ]);
 
+/**
+ * Paths that only ever belong to vulnerability scanners. Answered with a bare
+ * 404 before anything else runs.
+ *
+ * These were the single largest source of denials in the Arcjet console: in
+ * the week to 28 Sep 2026, /wp-admin/install.php alone accounted for 115 of
+ * 175 denials - every request denied, none allowed - on an app that has never
+ * run WordPress. /.git/config is the other classic, probing for an exposed
+ * repository to read source and credentials out of.
+ *
+ * Arcjet was already blocking all of this correctly, so this is not a security
+ * fix. It is a cost one. Every probe was spending an Arcjet API call against a
+ * FREE plan quota to reach a foregone conclusion. Matching them here returns
+ * before aj.protect() is ever called.
+ *
+ * 404 rather than 403 on purpose: a 403 confirms something is there to be
+ * forbidden, while a 404 is what a site that simply does not have WordPress
+ * would say. Scanners deprioritise hosts that answer 404.
+ *
+ * Deliberately narrow. Only paths with no legitimate meaning in a Next.js app
+ * are listed - no wildcards broad enough to catch a future real route.
+ */
+const isScannerProbe = createRouteMatcher([
+  "/wp-admin(.*)",
+  "/wp-login(.*)",
+  "/wp-content(.*)",
+  "/wp-includes(.*)",
+  "/xmlrpc.php",
+  "/.git(.*)",
+  "/.env(.*)",
+]);
+
 const mode = env.ARCJET_MODE;
 
 const aj = arcjet({
@@ -84,6 +116,12 @@ const aj = arcjet({
 });
 
 export default clerkMiddleware(async (auth, req) => {
+  // Before Arcjet and before Clerk: these never reach the application, and
+  // never spend an Arcjet call.
+  if (isScannerProbe(req)) {
+    return new Response(null, { status: 404 });
+  }
+
   if (!isWebhookRoute(req) && !isMetadataRoute(req)) {
     const decision = await aj.protect(req);
 
