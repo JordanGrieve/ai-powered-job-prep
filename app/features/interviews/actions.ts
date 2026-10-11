@@ -6,11 +6,7 @@ import { db } from "@/app/drizzle/db";
 import { jobInfoTable } from "@/app/drizzle/schema/jobInfo";
 import { and, eq } from "drizzle-orm";
 import { cacheTag, revalidatePath, revalidateTag } from "next/cache";
-import {
-  deleteUnconnectedInterview,
-  insertInterview,
-  updateInterview as updateInterviewDb,
-} from "./db";
+import { insertInterview, updateInterview as updateInterviewDb } from "./db";
 import { getInterviewIdTag } from "./dbCache";
 import { InterviewTable } from "@/app/drizzle/schema/interview";
 import { canCreateInterview, PermissionCheckError } from "./permissions";
@@ -177,43 +173,6 @@ export async function updateInterview(
   const updated = await updateInterviewDb(id, parsed.data);
   if (updated == null) {
     return { error: true as const, message: "Interview not found" };
-  }
-
-  return { error: false as const };
-}
-
-/**
- * Discards an interview that was created but never connected.
- *
- * createInterview has to write the row BEFORE connect() runs - it is where the
- * plan check and the rate limiter live, and neither may be skipped on the way
- * to a billable voice call. The cost of that ordering is that a failed connect
- * leaves an orphan: duration 00:00:00, no chat id, no transcript. Those rows
- * are invisible in the interviews list (it filters on humeChatId) but reachable
- * by URL, so they accumulate silently.
- *
- * Quota is unaffected either way - the limit counts non-null humeChatId - so
- * this is tidiness, not entitlement. Failure is intentionally not surfaced:
- * the caller is already showing the user a connection error, and "we also
- * could not tidy up" helps nobody.
- */
-export async function discardUnconnectedInterview(id: string) {
-  const { userId } = await getCurrentUser();
-  if (userId == null) return PERMISSION_ERROR;
-  if (!uuidSchema.safeParse(id).success) {
-    return { error: true as const, message: "Invalid interview" };
-  }
-
-  // Ownership first: getInterview joins through jobInfo.userId, so this cannot
-  // delete another user's row even with a valid id.
-  const interview = await getInterview(id, userId);
-  if (interview == null) return PERMISSION_ERROR;
-
-  const deleted = await deleteUnconnectedInterview(id);
-  if (deleted == null) {
-    // Either already gone, or it connected after all - both fine, and neither
-    // is worth telling the user about.
-    return { error: false as const };
   }
 
   return { error: false as const };
