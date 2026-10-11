@@ -4,7 +4,6 @@ import { env } from "@/app/data/env/client";
 import { jobInfoTable } from "@/app/drizzle/schema";
 import {
   createInterview,
-  discardUnconnectedInterview,
   updateInterview,
 } from "@/app/features/interviews/actions";
 import {
@@ -127,6 +126,10 @@ export function StartCall({
   // handshake, so a second click creates a second interview row and spends a
   // second rate-limit token.
   const [starting, setStarting] = useState(false);
+  // Toast each distinct voice error once. The effect below reports and does
+  // nothing else, so it needs its own idempotence rather than relying on a
+  // state change to stop it re-firing.
+  const toastedErrorRef = useRef<unknown>(null);
   const durationRef = useRef(callDurationTimestamp);
   // humeChatId is write-once server-side, so guard against a duplicate attempt
   // when this effect re-runs.
@@ -154,27 +157,29 @@ export function StartCall({
     if (voiceError == null || interviewId == null) return;
     if (chatMetadata?.chatId != null) return;
 
+    // Reporting only - no state is touched here, and the row is left alone.
+    //
+    // An earlier version deleted the interview as tidiness and cleared the id.
+    // That turned a handled state into a 404: the disconnect effect below
+    // navigates to /interviews/{id} whenever there is an id, so the user was
+    // sent to a page whose row was being deleted in the same moment.
+    // Reproduced on production 11 Oct 2026 - two interview ids from a failed
+    // run answered "We couldn't find that".
+    //
+    // The detail page already handles a null chat id, and says the useful
+    // thing: "This interview never finished connecting, so there is no
+    // transcript to show. You have not been charged for it." That message was
+    // written for exactly this state; deleting the row destroyed the thing
+    // that explained it.
+    //
+    // Orphans cost nothing. The interviews list filters on a non-null
+    // humeChatId so they never appear, and the plan limit counts the same
+    // column so they never consume quota.
+    if (toastedErrorRef.current === voiceError) return;
+    toastedErrorRef.current = voiceError;
+
     console.error("[interview] voice error", voiceError);
     errorToast(voiceErrorMessage(voiceError));
-
-    // Same async shape as the chat-id sync below: the cleanup has to be
-    // awaited anyway, and doing the resets after it keeps setState out of the
-    // effect body, which react-hooks/set-state-in-effect rejects.
-    let cancelled = false;
-    (async () => {
-      try {
-        await discardUnconnectedInterview(interviewId);
-      } catch (error) {
-        console.error("[interview] discard failed", error);
-      }
-      if (cancelled) return;
-      setInterviewId(null);
-      setStarting(false);
-    })();
-
-    return () => {
-      cancelled = true;
-    };
   }, [voiceError, interviewId, chatMetadata?.chatId]);
 
   // Sync chat ID.
@@ -310,7 +315,12 @@ export function StartCall({
       <div className="flex justify-center items-center h-screen-header">
         <Button
           size="lg"
-          disabled={starting}
+          // Derived rather than reset in the error effect: a surfaced voice
+          // error means the attempt is over, so the button must come back even
+          // though `starting` was never cleared. Keeping this out of an effect
+          // avoids setState-in-effect, and avoids the stuck-disabled button
+          // that an un-reset flag would otherwise leave behind.
+          disabled={starting && voiceError == null}
           onClick={async () => {
             if (starting) return;
             setStarting(true);
@@ -370,10 +380,8 @@ export function StartCall({
               console.error("[interview] connect failed", error);
               errorToast(connectErrorMessage(error));
 
-              // The row exists but will never have a chat id, so drop it
-              // rather than leave a dead entry the user cannot act on.
-              // Best-effort: they already have the real error on screen.
-              void discardUnconnectedInterview(res.id).catch(() => {});
+              // Row left in place on purpose - see the note on the voice-error
+              // effect above. Deleting it is what produced 404s.
               setInterviewId(null);
               setStarting(false);
             }
