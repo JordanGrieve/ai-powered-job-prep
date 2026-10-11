@@ -33,10 +33,23 @@ vi.mock("next/cache", () => ({
 
 // vi.mock is hoisted above const declarations, so the shared spy has to be
 // created inside vi.hoisted to exist by the time the factory runs.
-const { protectMock } = vi.hoisted(() => ({ protectMock: vi.fn() }));
+const { protectMock, rules } = vi.hoisted(() => ({
+  protectMock: vi.fn(),
+  // Plain arrays rather than vi.fn(): the rules are built once at module load,
+  // and beforeEach's clearAllMocks would wipe a spy's record of that call
+  // before any test could read it.
+  rules: { slidingWindow: [] as unknown[], tokenBucket: [] as unknown[] },
+}));
 vi.mock("@arcjet/next", () => ({
   default: () => ({ protect: protectMock }),
-  tokenBucket: vi.fn(),
+  slidingWindow: (options: unknown) => {
+    rules.slidingWindow.push(options);
+    return {};
+  },
+  tokenBucket: (options: unknown) => {
+    rules.tokenBucket.push(options);
+    return {};
+  },
   request: vi.fn(async () => ({})),
 }));
 
@@ -59,6 +72,23 @@ const OTHER = "user_other";
 const JOB_INFO_ID = "11111111-1111-4111-8111-111111111111";
 const INTERVIEW_ID = "22222222-2222-4222-8222-222222222222";
 const CHAT_ID = "33333333-3333-4333-8333-333333333333";
+
+/**
+ * A denied decision shaped like Arcjet's. The actions read `reason` to log
+ * what the limit was and when it resets, so a bare `{ isDenied }` throws.
+ */
+function deniedByRateLimit() {
+  return {
+    isDenied: () => true,
+    reason: {
+      type: "RATE_LIMIT",
+      isRateLimit: () => true,
+      max: 10,
+      remaining: 0,
+      resetTime: new Date("2026-10-11T12:00:00Z"),
+    },
+  };
+}
 
 const findJobInfo = vi.mocked(db.query.jobInfoTable.findFirst);
 const findInterview = vi.mocked(db.query.InterviewTable.findFirst);
@@ -103,6 +133,18 @@ beforeEach(() => {
 });
 
 describe("createInterview", () => {
+  it("is burst-limited per minute, not budgeted per day", () => {
+    // The old rule was a tokenBucket refilling 4 a day, charged per click
+    // before Hume was ever reached. Twelve failed starts locked a user out for
+    // the rest of the day behind a toast that said "wait a moment". The daily
+    // bucket that remains belongs to feedback generation, which is idempotent
+    // and only spends when the paid pipeline actually runs.
+    expect(rules.slidingWindow).toEqual([
+      expect.objectContaining({ interval: "1m", mode: "LIVE" }),
+    ]);
+    expect(rules.tokenBucket).toHaveLength(1);
+  });
+
   it("rejects an unauthenticated caller without writing", async () => {
     signedInAs(null);
 
@@ -134,14 +176,20 @@ describe("createInterview", () => {
     expect(insertInterview).not.toHaveBeenCalled();
   });
 
-  it("returns RATE_LIMIT (not PLAN_LIMIT) when the token bucket is spent", async () => {
+  it("returns RATE_LIMIT (not PLAN_LIMIT) when the per-minute window is full", async () => {
     signedInAs(OWNER);
     findJobInfo.mockResolvedValue({ id: JOB_INFO_ID, userId: OWNER } as never);
-    protectMock.mockResolvedValue({ isDenied: () => true });
+    protectMock.mockResolvedValue(deniedByRateLimit());
 
     const res = await createInterview({ jobInfoId: JOB_INFO_ID });
 
     expect(res).toEqual({ error: true, message: RATE_LIMIT_MESSAGE });
+    // A sliding window has no tokens to spend. `requested` belonged to the
+    // old daily tokenBucket, and its absence here is what says this action is
+    // burst-limited rather than budgeted.
+    expect(protectMock).toHaveBeenCalledWith(expect.anything(), {
+      userId: OWNER,
+    });
     expect(insertInterview).not.toHaveBeenCalled();
   });
 
@@ -344,7 +392,7 @@ describe("generateInterviewFeedback", () => {
     findInterview.mockResolvedValue(
       interviewRow({ humeChatId: CHAT_ID }) as never,
     );
-    protectMock.mockResolvedValue({ isDenied: () => true });
+    protectMock.mockResolvedValue(deniedByRateLimit());
 
     const res = await generateInterviewFeedback(INTERVIEW_ID);
 

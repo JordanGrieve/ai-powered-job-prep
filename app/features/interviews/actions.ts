@@ -11,20 +11,45 @@ import { getInterviewIdTag } from "./dbCache";
 import { InterviewTable } from "@/app/drizzle/schema/interview";
 import { canCreateInterview, PermissionCheckError } from "./permissions";
 import { PLAN_LIMIT_MESSAGE, RATE_LIMIT_MESSAGE } from "@/lib/errorToast";
-import arcjet, { tokenBucket, request } from "@arcjet/next";
+import arcjet, { slidingWindow, tokenBucket, request } from "@arcjet/next";
 import { env } from "@/app/data/env/server";
 import { generateAiInterviewFeedback } from "@/app/services/ai/interviews";
 import { getHumeChatTag } from "@/app/services/hume/lib/cacheTags";
+import { createLogger } from "@/lib/logger";
 import { z } from "zod";
 
+const log = createLogger("interviews");
+
+/**
+ * Burst protection for createInterview, per user.
+ *
+ * This was a tokenBucket of capacity 12 refilling 4 a day. That is not a rate
+ * limit, it is a quota: four starts a day after a one-off burst of twelve. And
+ * it was charged per CLICK, before the Hume connection was attempted, so every
+ * failed start - a refused microphone, a wrong config id, Hume being down -
+ * spent a token on an interview that never happened. A day spent testing the
+ * start flow drained it, and from then on every click answered "Woah! Slow
+ * down. Please wait a moment and try again" for the next six hours. Nothing
+ * about it was quick, and waiting a moment could not fix it. Observed in
+ * production 11 Oct 2026.
+ *
+ * It also protected the wrong thing. The cost is Hume minutes, and the client
+ * talks to Hume directly with an access token the page already handed it -
+ * this action only inserts a row. Hume spend is bounded by the plan gate
+ * (canCreateInterview) and the 20-minute cap in _StartCall; a daily budget
+ * here added to neither. What a limiter on this action CAN do is stop a
+ * script flooding the interviews table. Ten starts a minute is more than a
+ * person retrying a flaky microphone will reach and still a hard ceiling for
+ * anything automated, and one minute is the only window for which the toast's
+ * "wait a moment" is actually true.
+ */
 const aj = arcjet({
   characteristics: ["userId"],
   key: env.ARCJET_KEY,
   rules: [
-    tokenBucket({
-      capacity: 12,
-      refillRate: 4,
-      interval: "1d",
+    slidingWindow({
+      interval: "1m",
+      max: 10,
       mode: "LIVE",
     }),
   ],
@@ -33,8 +58,10 @@ const aj = arcjet({
 /**
  * Feedback generation drains the whole Hume transcript and runs a long-context
  * Gemini call, so it is by far the most expensive path in the app. It gets its
- * own, tighter bucket - the createInterview bucket above is spent by a
- * different action and gives no protection here.
+ * own, tighter bucket - the createInterview window above is spent by a
+ * different action and gives no protection here. Unlike createInterview this
+ * IS a daily budget on purpose: the action is idempotent, so a token is only
+ * ever spent when the paid pipeline actually runs.
  */
 const feedbackAj = arcjet({
   characteristics: ["userId"],
@@ -109,10 +136,11 @@ export async function createInterview({
     };
   }
 
-  const decision = await aj.protect(await request(), { userId, requested: 1 });
+  const decision = await aj.protect(await request(), { userId });
   if (decision.isDenied()) {
-    // A spent token bucket is a rate limit, not a plan limit. Returning
-    // PLAN_LIMIT here sold an upgrade that could not have helped.
+    // A full window is a rate limit, not a plan limit. Returning PLAN_LIMIT
+    // here sold an upgrade that could not have helped.
+    logRateLimited("createInterview", userId, decision);
     return { error: true, message: RATE_LIMIT_MESSAGE };
   }
 
@@ -208,6 +236,7 @@ export async function generateInterviewFeedback(interviewId: string) {
     requested: 1,
   });
   if (decision.isDenied()) {
+    logRateLimited("generateInterviewFeedback", userId, decision);
     return { error: true as const, message: RATE_LIMIT_MESSAGE };
   }
 
@@ -251,6 +280,32 @@ export async function generateInterviewFeedback(interviewId: string) {
   );
 
   return { error: false as const };
+}
+
+/**
+ * A denial inside a server action used to leave no trace on the server. The
+ * proxy logs its own denials, but these surfaced only as a toast in the user's
+ * browser - so the first evidence that the old bucket was quota-shaped was a
+ * screenshot, and nothing in the Vercel logs could say whether the user had
+ * been refused once or forty times, or when the limit would let them back in.
+ */
+function logRateLimited(
+  action: string,
+  userId: string,
+  decision: Awaited<ReturnType<typeof aj.protect>>,
+) {
+  const reason = decision.reason;
+  log.warn("rate limited", {
+    action,
+    userId,
+    ...(reason.isRateLimit()
+      ? {
+          max: reason.max,
+          remaining: reason.remaining,
+          resetTime: reason.resetTime?.toISOString(),
+        }
+      : { reason: reason.type }),
+  });
 }
 
 async function getJobInfo(id: string, userId: string) {
