@@ -295,7 +295,17 @@ export function StartCall({
     };
   }, [interviewId, readyState, router, jobInfo.id]);
 
-  if (readyState === VoiceReadyState.IDLE) {
+  // CLOSED with no interview id is not a call in progress - it is a call that
+  // ended without ever becoming one, which is where a failed connect lands.
+  // Treated as startable rather than falling through to the spinner below,
+  // because that spinner has no retry in it: the Start button used to render
+  // only for IDLE, so breaking the redirect loop without this would have
+  // traded a loop for a dead end that spins forever.
+  const canStart =
+    readyState === VoiceReadyState.IDLE ||
+    (readyState === VoiceReadyState.CLOSED && interviewId == null);
+
+  if (canStart) {
     return (
       <div className="flex justify-center items-center h-screen-header">
         <Button
