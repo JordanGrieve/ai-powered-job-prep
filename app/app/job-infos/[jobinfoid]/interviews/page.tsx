@@ -18,7 +18,6 @@ import { and, desc, eq, isNotNull } from "drizzle-orm";
 import { ArrowRightIcon, Loader2, PlusIcon } from "lucide-react";
 import { cacheTag } from "next/cache";
 import Link from "next/link";
-import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import type { Metadata } from "next";
 
@@ -45,9 +44,21 @@ async function SuspendedPage({ params }: { params: JobInfoParams }) {
   if (userId == null) return redirectToSignIn();
 
   const interviews = await getInterviews(jobInfoId, userId);
-  if (interviews.length === 0) {
-    return redirect(`/app/job-infos/${jobInfoId}/interviews/new`);
-  }
+
+  // An empty list used to redirect to /interviews/new. That turned this page
+  // into one half of a navigation loop: _StartCall pushes here when a call
+  // closes without an interview id, this page sent the user straight back, and
+  // the state that caused the push was unchanged on arrival - so the two
+  // bounced between each other until the rate limiter cut in with a 429 on
+  // every route and the session fell over. Observed in production
+  // 11 Oct 2026: 28 requests in 13 seconds alternating between these two
+  // paths.
+  //
+  // The redirect was never needed. The grid below already leads with a
+  // "New Interview" card, so zero interviews renders as a usable empty state
+  // rather than a dead end. A page that navigates away on load is worth
+  // avoiding on principle - it can only ever be correct if every page that
+  // links to it agrees, and they will not stay agreed.
 
   return (
     <div className="space-y-6 w-full">

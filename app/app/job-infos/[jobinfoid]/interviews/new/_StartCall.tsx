@@ -259,10 +259,18 @@ export function StartCall({
   // Handle Disconnect
   useEffect(() => {
     if (readyState !== VoiceReadyState.CLOSED) return;
-    if (interviewId == null) {
-      router.push(`/app/job-infos/${jobInfo.id}/interviews`);
-      return;
-    }
+
+    // No interview id means the call closed without one ever being created, or
+    // it was discarded because the connection failed. There is nothing to
+    // navigate to: the error toast is already on screen here, and the user is
+    // one click from trying again.
+    //
+    // This used to push to the interviews list. That was the other half of the
+    // loop fixed alongside this - the list redirected straight back when it
+    // was empty, and readyState and interviewId were unchanged on arrival, so
+    // the push fired again immediately. Staying put is both correct and the
+    // end of that cycle.
+    if (interviewId == null) return;
 
     let cancelled = false;
 
