@@ -17,6 +17,7 @@ vi.mock("./permissions", () => ({ canCreateInterview: vi.fn() }));
 vi.mock("./db", () => ({
   insertInterview: vi.fn(),
   updateInterview: vi.fn(),
+  deleteUnconnectedInterview: vi.fn(),
 }));
 vi.mock("@/app/drizzle/db", () => ({
   db: { query: { jobInfoTable: { findFirst: vi.fn() }, InterviewTable: { findFirst: vi.fn() } } },
@@ -43,10 +44,15 @@ vi.mock("@arcjet/next", () => ({
 import { db } from "@/app/drizzle/db";
 import { getCurrentUser } from "@/app/services/clerk/lib/getCurrentUser";
 import { generateAiInterviewFeedback } from "@/app/services/ai/interviews";
-import { insertInterview, updateInterview as updateInterviewDb } from "./db";
+import {
+  deleteUnconnectedInterview,
+  insertInterview,
+  updateInterview as updateInterviewDb,
+} from "./db";
 import { canCreateInterview } from "./permissions";
 import {
   createInterview,
+  discardUnconnectedInterview,
   generateInterviewFeedback,
   updateInterview,
 } from "./actions";
@@ -385,5 +391,63 @@ describe("generateInterviewFeedback", () => {
       feedback: "## Communication Clarity: 8/10",
       rating: 7,
     });
+  });
+});
+
+describe("discardUnconnectedInterview", () => {
+  it("deletes an interview the caller owns", async () => {
+    signedInAs(OWNER);
+    findInterview.mockResolvedValue(interviewRow() as never);
+    vi.mocked(deleteUnconnectedInterview).mockResolvedValue({
+      id: INTERVIEW_ID,
+      jobInfoId: JOB_INFO_ID,
+    } as never);
+
+    const res = await discardUnconnectedInterview(INTERVIEW_ID);
+
+    expect(res).toEqual({ error: false });
+    expect(deleteUnconnectedInterview).toHaveBeenCalledWith(INTERVIEW_ID);
+  });
+
+  it("refuses to touch an interview belonging to someone else", async () => {
+    signedInAs(OTHER);
+    // getInterview joins through jobInfo.userId, so a row owned by OWNER is
+    // simply not found for OTHER.
+    findInterview.mockResolvedValue(undefined as never);
+
+    const res = await discardUnconnectedInterview(INTERVIEW_ID);
+
+    expect(res).toEqual({
+      error: true,
+      message: "You don't have permission to do this",
+    });
+    expect(deleteUnconnectedInterview).not.toHaveBeenCalled();
+  });
+
+  it("reports success when the row is already gone or has since connected", async () => {
+    // deleteUnconnectedInterview returns null when its humeChatId IS NULL
+    // predicate matches nothing. That is the race this action must survive:
+    // a chat id landing between the ownership read and the delete means the
+    // interview is real, and the statement must leave it alone.
+    signedInAs(OWNER);
+    findInterview.mockResolvedValue(interviewRow() as never);
+    vi.mocked(deleteUnconnectedInterview).mockResolvedValue(null as never);
+
+    const res = await discardUnconnectedInterview(INTERVIEW_ID);
+
+    expect(res).toEqual({ error: false });
+  });
+
+  it("rejects a signed-out caller before any database work", async () => {
+    signedInAs(null);
+
+    const res = await discardUnconnectedInterview(INTERVIEW_ID);
+
+    expect(res).toEqual({
+      error: true,
+      message: "You don't have permission to do this",
+    });
+    expect(findInterview).not.toHaveBeenCalled();
+    expect(deleteUnconnectedInterview).not.toHaveBeenCalled();
   });
 });
