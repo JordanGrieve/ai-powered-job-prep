@@ -310,6 +310,24 @@ export function StartCall({
     readyState === VoiceReadyState.IDLE ||
     (readyState === VoiceReadyState.CLOSED && interviewId == null);
 
+  /**
+   * One source of truth for "a start attempt is currently in flight".
+   *
+   * `starting` alone is not that, because nothing resets it once a voice error
+   * has been surfaced - the error effect reports and touches no state on
+   * purpose, to stay clear of setState-in-effect. A surfaced error means the
+   * attempt is over, so it ends the in-flight window.
+   *
+   * Named and used in all three places rather than repeated inline. The
+   * previous two commits each updated some of those places and not others:
+   * first the label disagreed with `disabled`, leaving a button that was
+   * enabled and still read "Starting…"; then the click guard disagreed with
+   * both, leaving a button that looked ready, was enabled, and returned at
+   * `if (starting)` without doing anything. Three copies of one condition is
+   * how that keeps happening.
+   */
+  const attemptInFlight = starting && voiceError == null;
+
   if (canStart) {
     return (
       <div className="flex justify-center items-center h-screen-header">
@@ -320,9 +338,9 @@ export function StartCall({
           // though `starting` was never cleared. Keeping this out of an effect
           // avoids setState-in-effect, and avoids the stuck-disabled button
           // that an un-reset flag would otherwise leave behind.
-          disabled={starting && voiceError == null}
+          disabled={attemptInFlight}
           onClick={async () => {
-            if (starting) return;
+            if (attemptInFlight) return;
             setStarting(true);
 
             // createInterview is awaited OUTSIDE the connect() try below, so
@@ -390,7 +408,7 @@ export function StartCall({
           {/* Keyed to the same condition as `disabled`. Deriving one and not
               the other left the button enabled but still reading "Starting…"
               after a failed attempt - clickable and lying about it. */}
-          {starting && voiceError == null ? "Starting…" : "Start Interview"}
+          {attemptInFlight ? "Starting…" : "Start Interview"}
         </Button>
       </div>
     );
