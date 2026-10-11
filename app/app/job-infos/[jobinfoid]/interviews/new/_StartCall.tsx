@@ -387,7 +387,10 @@ export function StartCall({
             }
           }}
         >
-          {starting ? "Starting…" : "Start Interview"}
+          {/* Keyed to the same condition as `disabled`. Deriving one and not
+              the other left the button enabled but still reading "Starting…"
+              after a failed attempt - clickable and lying about it. */}
+          {starting && voiceError == null ? "Starting…" : "Start Interview"}
         </Button>
       </div>
     );
