@@ -259,10 +259,18 @@ export function StartCall({
   // Handle Disconnect
   useEffect(() => {
     if (readyState !== VoiceReadyState.CLOSED) return;
-    if (interviewId == null) {
-      router.push(`/app/job-infos/${jobInfo.id}/interviews`);
-      return;
-    }
+
+    // No interview id means the call closed without one ever being created, or
+    // it was discarded because the connection failed. There is nothing to
+    // navigate to: the error toast is already on screen here, and the user is
+    // one click from trying again.
+    //
+    // This used to push to the interviews list. That was the other half of the
+    // loop fixed alongside this - the list redirected straight back when it
+    // was empty, and readyState and interviewId were unchanged on arrival, so
+    // the push fired again immediately. Staying put is both correct and the
+    // end of that cycle.
+    if (interviewId == null) return;
 
     let cancelled = false;
 
@@ -287,7 +295,17 @@ export function StartCall({
     };
   }, [interviewId, readyState, router, jobInfo.id]);
 
-  if (readyState === VoiceReadyState.IDLE) {
+  // CLOSED with no interview id is not a call in progress - it is a call that
+  // ended without ever becoming one, which is where a failed connect lands.
+  // Treated as startable rather than falling through to the spinner below,
+  // because that spinner has no retry in it: the Start button used to render
+  // only for IDLE, so breaking the redirect loop without this would have
+  // traded a loop for a dead end that spins forever.
+  const canStart =
+    readyState === VoiceReadyState.IDLE ||
+    (readyState === VoiceReadyState.CLOSED && interviewId == null);
+
+  if (canStart) {
     return (
       <div className="flex justify-center items-center h-screen-header">
         <Button
