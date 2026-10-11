@@ -7,6 +7,10 @@ import {
   updateInterview,
 } from "@/app/features/interviews/actions";
 import {
+  fitVariablesForConnect,
+  type SessionVariables,
+} from "@/app/features/interviews/connectVariables";
+import {
   INTERVIEW_WARNING_SECONDS,
   MAX_INTERVIEW_SECONDS,
   formatRemaining,
@@ -119,6 +123,8 @@ export function StartCall({
     // resolves normally, so a try/catch around connect() alone never fires for
     // the single most likely way starting an interview fails.
     error: voiceError,
+    status,
+    sendSessionSettings,
   } = useVoice();
   const [interviewId, setInterviewId] = useState<string | null>(null);
   // Guards the window between the click and readyState leaving IDLE. Without
@@ -137,11 +143,35 @@ export function StartCall({
   // disconnect() is not instantaneous - without this the effect re-fires on
   // every duration tick between the call to disconnect and CLOSED arriving.
   const capReachedRef = useRef(false);
+  // The complete session variables, held back when they were too large for
+  // the connect URL and delivered over the socket once the call is up. Null
+  // whenever the URL carried everything.
+  const deferredVariablesRef = useRef<SessionVariables | null>(null);
   const router = useRouter();
 
   useEffect(() => {
     durationRef.current = callDurationTimestamp;
   }, [callDurationTimestamp]);
+
+  // Second half of the connect-URL fix (see connectVariables.ts). The SDK
+  // puts whatever connect() is given into the WebSocket URL, and Hume refuses
+  // the handshake once that URL passes ~6.5 KB - which a detailed job advert
+  // does on its own. So the URL carries a bounded prefix, enough for the
+  // interviewer's opening line, and the full text follows here as a
+  // session_settings message, which has no URL to overflow. Hume applies
+  // updated variables to every turn after it arrives.
+  //
+  // Keyed on `status` rather than readyState: "connected" is set only after
+  // the SDK has marked its own socket resource connected, which is the gate
+  // sendSessionSettings checks before it will send anything.
+  useEffect(() => {
+    if (status.value !== "connected") return;
+    const variables = deferredVariablesRef.current;
+    if (variables == null) return;
+    deferredVariablesRef.current = null;
+    // The SDK adds the `type: "session_settings"` discriminator itself.
+    sendSessionSettings({ variables });
+  }, [status.value, sendSessionSettings]);
 
   // Surface a failure the SDK reported through state rather than by rejecting.
   //
@@ -364,6 +394,30 @@ export function StartCall({
             }
             setInterviewId(res.id);
 
+            // SOURCE OF TRUTH for the Hume EVI contract. The config named by
+            // NEXT_PUBLIC_HUME_CONFIG_ID must declare these exact four
+            // template variables in its prompt. Hume silently DROPS session
+            // variables it does not recognise, so a mismatch produces an
+            // interviewer that ignores the job context with no error
+            // anywhere. See the README's "Hume EVI configuration" section.
+            // Confirmed working 11 Oct 2026: the interviewer opened by naming
+            // the role and the company.
+            const variables: SessionVariables = {
+              userName: user.name,
+              title: jobInfo.title || "Untitled Job Info",
+              description: jobInfo.description || "No description",
+              experienceLevel: jobInfo.experienceLevel || "Unknown",
+            };
+            // The SDK serialises these into the WebSocket URL, and Hume
+            // refuses the handshake once that URL passes ~6.5 KB. A 5,719
+            // character job advert encoded to 7,897, so every detailed job
+            // description failed to connect - silently, with a 1006 close -
+            // while short ones worked. Reproduced on production 11 Oct 2026.
+            // The URL gets a bounded prefix; the full set follows over the
+            // socket in the effect above once the call is connected.
+            const { forConnect, truncated } = fitVariablesForConnect(variables);
+            deferredVariablesRef.current = truncated ? variables : null;
+
             try {
               // AWAITED. This used to be fire-and-forget, so every way a call
               // can fail to start - microphone permission refused, an expired
@@ -376,22 +430,9 @@ export function StartCall({
               await connect({
                 auth: { type: "accessToken", value: accessToken },
                 configId: env.NEXT_PUBLIC_HUME_CONFIG_ID,
-                // SOURCE OF TRUTH for the Hume EVI contract. The config named
-                // by NEXT_PUBLIC_HUME_CONFIG_ID must declare these exact four
-                // template variables in its prompt. Hume silently DROPS
-                // session variables it does not recognise, so a mismatch
-                // produces an interviewer that ignores the job context with no
-                // error anywhere. See the README's "Hume EVI configuration"
-                // section. Confirmed working 11 Oct 2026: the interviewer
-                // opened by naming the role and the company.
                 sessionSettings: {
                   type: "session_settings",
-                  variables: {
-                    userName: user.name,
-                    title: jobInfo.title || "Untitled Job Info",
-                    description: jobInfo.description || "No description",
-                    experienceLevel: jobInfo.experienceLevel || "Unknown",
-                  },
+                  variables: forConnect,
                 },
               });
             } catch (error) {
@@ -400,6 +441,7 @@ export function StartCall({
 
               // Row left in place on purpose - see the note on the voice-error
               // effect above. Deleting it is what produced 404s.
+              deferredVariablesRef.current = null;
               setInterviewId(null);
               setStarting(false);
             }

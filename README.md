@@ -172,6 +172,16 @@ the job context entirely, with no error in the app, in the browser console, or
 in the Hume logs. If your AI interviewer is asking generic questions, this is
 almost certainly why.
 
+**The variables travel in the WebSocket URL, and Hume caps that URL.** The
+React SDK serialises whatever you pass to `connect()` as query parameters, and
+api.hume.ai refuses the handshake (an `error` event, then a 1006 close, nothing
+logged) once the URL passes roughly 6.5 KB. A detailed job advert encodes to
+well over that — newlines are `%0A`, bullets and curly quotes nine characters
+each — so long descriptions could never start an interview while short ones
+worked. `app/features/interviews/connectVariables.ts` bounds what goes in the
+URL; when it had to cut, `_StartCall` sends the full set as a
+`session_settings` message once the call is connected, which has no such limit.
+
 ## Deployment notes
 
 - **Preview deployments are disabled on purpose.** `vercel.json` sets an
