@@ -24,6 +24,7 @@ import { formatDateTime } from "@/lib/formatters";
 import { eq } from "drizzle-orm";
 import { Loader2Icon } from "lucide-react";
 import { cacheTag } from "next/cache";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import type { Metadata } from "next";
@@ -88,7 +89,21 @@ export default function InterviewPage({
             item={interview}
             fallback={<SkeletonButton className="w-32" />}
             result={(interview) =>
-              interview.feedback == null ? (
+              // No chat id means the call never connected, so there is no
+              // transcript for feedback to be generated from. The action
+              // already refuses in that case; offering the button anyway
+              // just turned a clear "never finished connecting" into an
+              // error toast. The body copy says "Start a new interview to
+              // retry", so the header gives that sentence its click.
+              interview.humeChatId == null ? (
+                <Button asChild variant="outline">
+                  <Link
+                    href={`/app/job-infos/${interview.jobInfo.id}/interviews/new`}
+                  >
+                    Start a new interview
+                  </Link>
+                </Button>
+              ) : interview.feedback == null ? (
                 <ActionButton
                   action={generateInterviewFeedback.bind(null, interview.id)}
                 >
