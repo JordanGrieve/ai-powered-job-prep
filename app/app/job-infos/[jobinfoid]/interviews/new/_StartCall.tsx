@@ -4,6 +4,7 @@ import { env } from "@/app/data/env/client";
 import { jobInfoTable } from "@/app/drizzle/schema";
 import {
   createInterview,
+  discardUnconnectedInterview,
   updateInterview,
 } from "@/app/features/interviews/actions";
 import {
@@ -27,6 +28,35 @@ import {
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 
+/**
+ * Turns a failed connect() into something the user can act on.
+ *
+ * By far the most likely cause is the microphone: connect() asks for it, and a
+ * blocked or dismissed permission prompt is indistinguishable from a network
+ * failure unless the DOMException name is read. Telling someone "something
+ * went wrong" when the real answer is "your browser is blocking the mic" is
+ * the difference between a fixable problem and an app that looks broken.
+ */
+function connectErrorMessage(error: unknown): string {
+  const name =
+    typeof error === "object" && error !== null && "name" in error
+      ? String((error as { name: unknown }).name)
+      : "";
+
+  switch (name) {
+    case "NotAllowedError":
+    case "SecurityError":
+      return "We could not access your microphone. Allow microphone access for this site in your browser, then try again.";
+    case "NotFoundError":
+    case "OverconstrainedError":
+      return "No microphone was found. Connect one and try again.";
+    case "NotReadableError":
+      return "Your microphone is in use by another app. Close it and try again.";
+    default:
+      return "We could not start the interview. Please try again.";
+  }
+}
+
 export function StartCall({
   jobInfo,
   user,
@@ -45,6 +75,11 @@ export function StartCall({
   const { connect, disconnect, readyState, chatMetadata, callDurationTimestamp } =
     useVoice();
   const [interviewId, setInterviewId] = useState<string | null>(null);
+  // Guards the window between the click and readyState leaving IDLE. Without
+  // it the button stays live during the server round trip and the Hume
+  // handshake, so a second click creates a second interview row and spends a
+  // second rate-limit token.
+  const [starting, setStarting] = useState(false);
   const durationRef = useRef(callDurationTimestamp);
   // humeChatId is write-once server-side, so guard against a duplicate attempt
   // when this effect re-runs.
@@ -173,36 +208,63 @@ export function StartCall({
       <div className="flex justify-center items-center h-screen-header">
         <Button
           size="lg"
+          disabled={starting}
           onClick={async () => {
-            // TODO Create Interview
+            if (starting) return;
+            setStarting(true);
+
             const res = await createInterview({ jobInfoId: jobInfo.id });
 
             if (res.error) {
+              setStarting(false);
               return errorToast(res.message);
             }
             setInterviewId(res.id);
-            connect({
-              auth: { type: "accessToken", value: accessToken },
-              configId: env.NEXT_PUBLIC_HUME_CONFIG_ID,
-              // SOURCE OF TRUTH for the Hume EVI contract. The config named by
-              // NEXT_PUBLIC_HUME_CONFIG_ID must declare these exact four
-              // template variables in its prompt. Hume silently DROPS session
-              // variables it does not recognise, so a mismatch produces an
-              // interviewer that ignores the job context with no error
-              // anywhere. See the README's "Hume EVI configuration" section.
-              sessionSettings: {
-                type: "session_settings",
-                variables: {
-                  userName: user.name,
-                  title: jobInfo.title || "Untitled Job Info",
-                  description: jobInfo.description || "No description",
-                  experienceLevel: jobInfo.experienceLevel || "Unknown",
+
+            try {
+              // AWAITED. This used to be fire-and-forget, so every way a call
+              // can fail to start - microphone permission refused, an expired
+              // access token, a wrong config id, Hume being down - rejected
+              // into nothing. The row had already been written by then, so the
+              // user was left looking at an unchanged Start button with no
+              // error anywhere, and an interview in their history reading
+              // "never finished connecting". Observed in production on
+              // 11 Oct 2026.
+              await connect({
+                auth: { type: "accessToken", value: accessToken },
+                configId: env.NEXT_PUBLIC_HUME_CONFIG_ID,
+                // SOURCE OF TRUTH for the Hume EVI contract. The config named
+                // by NEXT_PUBLIC_HUME_CONFIG_ID must declare these exact four
+                // template variables in its prompt. Hume silently DROPS
+                // session variables it does not recognise, so a mismatch
+                // produces an interviewer that ignores the job context with no
+                // error anywhere. See the README's "Hume EVI configuration"
+                // section. Confirmed working 11 Oct 2026: the interviewer
+                // opened by naming the role and the company.
+                sessionSettings: {
+                  type: "session_settings",
+                  variables: {
+                    userName: user.name,
+                    title: jobInfo.title || "Untitled Job Info",
+                    description: jobInfo.description || "No description",
+                    experienceLevel: jobInfo.experienceLevel || "Unknown",
+                  },
                 },
-              },
-            });
+              });
+            } catch (error) {
+              console.error("[interview] connect failed", error);
+              errorToast(connectErrorMessage(error));
+
+              // The row exists but will never have a chat id, so drop it
+              // rather than leave a dead entry the user cannot act on.
+              // Best-effort: they already have the real error on screen.
+              void discardUnconnectedInterview(res.id).catch(() => {});
+              setInterviewId(null);
+              setStarting(false);
+            }
           }}
         >
-          Start Interview
+          {starting ? "Starting…" : "Start Interview"}
         </Button>
       </div>
     );
