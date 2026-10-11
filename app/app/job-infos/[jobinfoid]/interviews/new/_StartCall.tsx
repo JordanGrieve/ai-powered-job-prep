@@ -37,6 +37,42 @@ import { useEffect, useMemo, useRef, useState } from "react";
  * went wrong" when the real answer is "your browser is blocking the mic" is
  * the difference between a fixable problem and an app that looks broken.
  */
+/**
+ * Turns the SDK's structured VoiceError into something the user can act on.
+ *
+ * Preferred over reading a DOMException name, because the SDK already tells us
+ * exactly why: `mic_permission_denied` is unambiguous in a way that a generic
+ * failure is not. Telling someone "something went wrong" when the real answer
+ * is "your browser is blocking the mic" is the difference between a fixable
+ * problem and an app that looks broken.
+ */
+function voiceErrorMessage(error: {
+  type: string;
+  reason: string;
+  message?: string;
+}): string {
+  if (error.type === "mic_error") {
+    switch (error.reason) {
+      case "mic_permission_denied":
+        return "We could not access your microphone. Allow microphone access for this site in your browser, then try again.";
+      case "mime_types_not_supported":
+        return "Your browser does not support the audio format this needs. Try Chrome, Edge or Safari.";
+      default:
+        return "We could not start your microphone. Check it is connected and not in use by another app, then try again.";
+    }
+  }
+
+  if (error.type === "socket_error") {
+    return "We could not reach the interview service. Check your connection and try again.";
+  }
+
+  if (error.type === "audio_error") {
+    return "We could not start audio playback. Try again, or reload the page.";
+  }
+
+  return "We could not start the interview. Please try again.";
+}
+
 function connectErrorMessage(error: unknown): string {
   const name =
     typeof error === "object" && error !== null && "name" in error
@@ -72,8 +108,19 @@ export function StartCall({
     imageUrl: string;
   };
 }) {
-  const { connect, disconnect, readyState, chatMetadata, callDurationTimestamp } =
-    useVoice();
+  const {
+    connect,
+    disconnect,
+    readyState,
+    chatMetadata,
+    callDurationTimestamp,
+    // The SDK reports most failures through this rather than by rejecting
+    // connect(). A refused microphone arrives here as
+    // { type: "mic_error", reason: "mic_permission_denied" } while connect()
+    // resolves normally, so a try/catch around connect() alone never fires for
+    // the single most likely way starting an interview fails.
+    error: voiceError,
+  } = useVoice();
   const [interviewId, setInterviewId] = useState<string | null>(null);
   // Guards the window between the click and readyState leaving IDLE. Without
   // it the button stays live during the server round trip and the Hume
@@ -92,6 +139,43 @@ export function StartCall({
   useEffect(() => {
     durationRef.current = callDurationTimestamp;
   }, [callDurationTimestamp]);
+
+  // Surface a failure the SDK reported through state rather than by rejecting.
+  //
+  // This is the path that actually fires when someone refuses the microphone
+  // prompt: connect() resolves, readyState goes back to IDLE, and the only
+  // evidence is `error`. Without this the user is returned to a Start button
+  // that looks untouched, which is the bug this whole change exists to fix.
+  //
+  // Guarded on interviewId so a failure arriving mid-call cannot discard a
+  // connected interview. Discarding is safe anyway - the DELETE carries
+  // `humeChatId IS NULL` - but there is no reason to issue the request.
+  useEffect(() => {
+    if (voiceError == null || interviewId == null) return;
+    if (chatMetadata?.chatId != null) return;
+
+    console.error("[interview] voice error", voiceError);
+    errorToast(voiceErrorMessage(voiceError));
+
+    // Same async shape as the chat-id sync below: the cleanup has to be
+    // awaited anyway, and doing the resets after it keeps setState out of the
+    // effect body, which react-hooks/set-state-in-effect rejects.
+    let cancelled = false;
+    (async () => {
+      try {
+        await discardUnconnectedInterview(interviewId);
+      } catch (error) {
+        console.error("[interview] discard failed", error);
+      }
+      if (cancelled) return;
+      setInterviewId(null);
+      setStarting(false);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [voiceError, interviewId, chatMetadata?.chatId]);
 
   // Sync chat ID.
   //
@@ -213,7 +297,20 @@ export function StartCall({
             if (starting) return;
             setStarting(true);
 
-            const res = await createInterview({ jobInfoId: jobInfo.id });
+            // createInterview is awaited OUTSIDE the connect() try below, so
+            // its own rejection needs handling here. Without this a throw -
+            // rather than a returned { error: true } - left `starting` stuck
+            // true and the Start button permanently disabled with nothing on
+            // screen: the same silent dead end this change set out to remove,
+            // reintroduced by the loading flag that fixed the double click.
+            let res: Awaited<ReturnType<typeof createInterview>>;
+            try {
+              res = await createInterview({ jobInfoId: jobInfo.id });
+            } catch (error) {
+              console.error("[interview] createInterview threw", error);
+              setStarting(false);
+              return errorToast("We could not start the interview. Please try again.");
+            }
 
             if (res.error) {
               setStarting(false);
