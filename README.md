@@ -95,7 +95,9 @@ This is the app's only authorization boundary. It:
 ### The interview flow
 
 1. `createInterview` — authenticates, checks the plan, verifies job-info
-   ownership, spends an Arcjet token, inserts a row with `humeChatId: null`.
+   ownership, passes a per-user Arcjet sliding window (10 starts a minute —
+   burst protection, not a quota; the quota is step 3), inserts a row with
+   `humeChatId: null`.
 2. `_StartCall.tsx` opens the Hume voice session with the job info passed as
    session variables.
 3. Hume returns a chat id; the client writes it back via `updateInterview`.
